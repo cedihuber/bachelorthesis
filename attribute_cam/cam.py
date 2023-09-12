@@ -3,6 +3,12 @@ import numpy
 import tqdm
 
 
+
+SUPPORTED_CAM_TYPES={
+  "grad-cam": pytorch_grad_cam.GradCAM
+}
+
+
 # Taken directly from the thesis of Bieri
 class BinaryCategoricalClassifierOutputTarget:
   def __init__(self, category):
@@ -13,9 +19,6 @@ class BinaryCategoricalClassifierOutputTarget:
       return abs(model_output[self.category])
     return abs(model_output[:, self.category])
 
-SUPPORTED_CAM_TYPES={
-  "grad-cam": pytorch_grad_cam.GradCAM
-}
 
 class CAM:
   def __init__(self, cam_type):

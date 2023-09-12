@@ -16,4 +16,5 @@ dependencies:
   - pip
   - pip:
       - grad-cam  # pytorch-gradcam on PyPI
+      - tabulate
       - -e . # install this package as well

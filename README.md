@@ -1,30 +1,50 @@
-# Bachelor Thesis Johanna Bieri (09.08.2023)
+# CAM visualizations of attribute classifiers
 
-The code was run on a computer with a windows 11 OS and a NVIDIA GeForce RTX 3060 graphics card. The images of the CelebA dataset used have the size 224x224 (not contained here).
+This code runs and evaluates different CAM techniques on two different attribute classifiers.
+For creating the CAMs, we directly rely on functionality from [PyTorch-Grad-CAM](https://github.com/jacobgil/pytorch-grad-cam).
 
-The code was updated to work on Linux systems (which it did not initially), and some speed-ups were implemented.
+## Installation
 
-## Conda Environment:
+This code comes with a conda installation, which you can use via:
 
-The file "bieri_env.yml" contains the conda environment with all the necessary packages for running the code. It can be installed by running "conda env create -f environment.yml". There might be some conflicts with the required packages when trying to install it on Linux or macOS.
+    conda env create -f environment.yaml
+    conda activate attribute-cam
+
+This will install several runnable scripts into the conda environment `attribute-cam`.
+
+## Scripts
+
+Implementations of the following scripts can be found in `attribute_cam/script`. All scripts contain a `--help` option to show possible arguments.
+
+* `predict.py` computes the prediction of the model on the original frontal images. This is rather quick.
+
+* `extract_cams.py` extracts CAM images for the frontal images of the given model and CAM technique and all attributes. This might take a while.
+
+* `average_cams.py` will compute average CAM images using various filter criteria, based on the ground truth and the prediction for each attribute.
+
+* `analyze.py` evaluates mean (and std) of the acceptable mask ratio measure over all attributes for various filter criteria.
 
 
-## Code:
+## Code
 
-folder code_core:
-1. Run the analyze.py file with the required arguments. This will generate the GradCAMs for every input image and compute the Acceptable Mask Ratio and other possibly useful data and store it in a csv file in the same folder. The error rate is computed as well and stored in a separate csv file.
+The following code files are available in `attribute_cam`:
 
-folder helper_scripts:
-2. By running the cam_avg.py file several different average GradCAMs are computed and stored at the given location.
+* `dataset.py` implements the dataset and the image IO
 
-3. By running the files starting with "get_amr_avg" different kinds of averages of the amr can be computed and stored at the given location.
+* `model.py` implements the original AFFACT models and the atribute prediction
 
-4. By running the kl_distance.py file the Kullback-Leibler distance for the average GradCAMs from the balanced to the average GradCAMs of the unbalanced network can be computed and stored at the given location.
+* `cam.py` implements the extraction of CAMs from the images for all attributes, and the averaging of CAM images
 
-5. By running the covmat.py file the covariance matrix for two given arrays of values (error rate and average acceptable mask ratio) can be computed.
+* `filter.py` implements IO of prediction and ground-truth attributes, and defines several filters that make use of the prediction and the ground truth
 
-folder additional_scripts:
-This folder contains additional scripts. The masks version 1 (masks.py), the scripts for shifting the landmarks and getting them(shift_landmarks.py, get_landmarks.py, get_shifted_landmarks.py) and the scripts for filtering out the non-frontal images from the CelebA dataset (filter_imgs.py, list_imgs.py).
+* `evaluation.py` computes acceptable mask ratios and error rates
 
-files:
-All the files needed are contained in this folder.
+* `mask.py` defines precise masks for all attributes that are required to compute the acceptable mask ratio
+
+## Additional files
+
+* `files` contains several files defining the frontal subset, the ground truth, and landmarks
+
+* `helper_scripts` left-overs from the original thesis that might be removed later
+
+* `additional_scripts` scripts to compute frontal subsets, eralier versions of the masks, and alike
