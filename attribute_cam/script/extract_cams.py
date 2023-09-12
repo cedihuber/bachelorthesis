@@ -7,57 +7,57 @@ import attribute_cam
 
 
 def command_line_options():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description="Extracts CAM images for all images from the given dataset using the given cam technique and the given model")
-    parser.add_argument(
-        '-w', '--which-sets',
-        default = ["validation"],
-        nargs="+",
-        choices = ("validation", "test"),
-        help="Select to process the given part(s) of the dataset"
-    )
-    parser.add_argument(
-        '-s', '--source-directory',
-        default='/local/scratch/datasets/CelebA/aligned_224x224',
-        help="Select directory containing the input dataset"
-    )
-    parser.add_argument(
-        '-o', '--output-directory',
-        default="./result",
-        help="Path to folder where the output should be stored"
-    )
-    parser.add_argument(
-        '-i', '--image-count',
-        type=int,
-        help="if given, limit the number of images"
-    )
-    parser.add_argument(
-        '-a', '--attributes',
-        nargs='+',
-        choices=attribute_cam.ATTRIBUTES,
-        help="Extract CAMS only for the given attributes"
-    )
-    parser.add_argument(
-        '-m', '--model-type',
-        default='balanced',
-        choices=['balanced', 'unbalanced'],
-        help="Can be balanced or unbalanced"
-    )
-    parser.add_argument(
-        '-c', '--cam-type',
-        default='grad-cam',
-        choices=list(attribute_cam.SUPPORTED_CAM_TYPES.keys()),
-        help="Select the type of CAM method that you want to apply"
-    )
-    parser.add_argument(
-        '--gpu',
-        action="store_false",
-        help='Do not use GPU acceleration (will be **disabled** when selected)'
-    )
-    args = parser.parse_args()
+  parser = argparse.ArgumentParser(
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+      description="Extracts CAM images for all images from the given dataset using the given cam technique and the given model")
+  parser.add_argument(
+      '-w', '--which-sets',
+      default = ["validation"],
+      nargs="+",
+      choices = ("validation", "test"),
+      help="Select to process the given part(s) of the dataset"
+  )
+  parser.add_argument(
+      '-s', '--source-directory',
+      default='/local/scratch/datasets/CelebA/aligned_224x224',
+      help="Select directory containing the input dataset"
+  )
+  parser.add_argument(
+      '-o', '--output-directory',
+      default="./result",
+      help="Path to folder where the output should be stored"
+  )
+  parser.add_argument(
+      '-i', '--image-count',
+      type=int,
+      help="if given, limit the number of images"
+  )
+  parser.add_argument(
+      '-a', '--attributes',
+      nargs='+',
+      choices=attribute_cam.ATTRIBUTES,
+      help="Extract CAMS only for the given attributes"
+  )
+  parser.add_argument(
+      '-m', '--model-type',
+      default='balanced',
+      choices=['balanced', 'unbalanced'],
+      help="Can be balanced or unbalanced"
+  )
+  parser.add_argument(
+      '-c', '--cam-type',
+      default='grad-cam',
+      choices=list(attribute_cam.SUPPORTED_CAM_TYPES.keys()),
+      help="Select the type of CAM method that you want to apply"
+  )
+  parser.add_argument(
+      '--gpu',
+      action="store_false",
+      help='Do not use GPU acceleration (will be **disabled** when selected)'
+  )
+  args = parser.parse_args()
 
-    return args
+  return args
 
 
 def main():
@@ -74,16 +74,15 @@ def main():
         args.attributes
     )
 
-
     print(f"Generating CAMS of type {args.cam_type} for {len(dataset)} images and {len(dataset.attributes)} attributes")
 
     # create CAM module
     cam = attribute_cam.CAM(args.cam_type)
+    # load AFFACT model
     affact = attribute_cam.AFFACT(args.model_type, "cuda" if args.gpu else "cpu")
 
-    ### generate CAMs
+    # generate CAMs
     startTime = datetime.now()
-
     cam.generate_cam(affact,dataset,args.gpu)
 
     print(f'The generation of CAMs finished within: {datetime.now() - startTime}')

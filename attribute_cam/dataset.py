@@ -47,6 +47,7 @@ ATTRIBUTES=[
   'Young'
 ]
 
+# manages all access to the dataset, original images, cam images and average CAMs
 class CelebA:
   def __init__(self, filtered_lists, source_directory, cam_directory=None, number_of_images=None, attributes=None, filter_type="none", extension=".png", image_resolution=(224,224,3)):
 
@@ -64,6 +65,7 @@ class CelebA:
     # load image lists
     self.images = [os.path.splitext(i)[0] for filtered_list in filtered_lists for n,i in enumerate(open(filtered_list, 'r'))  if i and n < number_of_images]
 
+  # implements the iterator interface by iterating over all images
   def __iter__(self):
     self.queue = collections.deque(self.images)
     return self
@@ -76,14 +78,19 @@ class CelebA:
   def __len__(self):
     return len(self.images)
 
+  # returns the filename of the original images
   def source_filename(self, item):
     return os.path.join(self.source_directory, item + self.extension)
 
+  # returns the filename of the CAM image
+  # if item is given, it returns the CAM image for the given item/image
+  # otherwise, it returns the filename for the average image for the given filter (stored in self)
   def cam_filename(self, attribute, item = None):
     if item is None:
       return os.path.join(self.cam_directory, self.filter_type, attribute + self.extension)
     return os.path.join(self.cam_directory, attribute, item + self.extension)
 
+  # loads the source tensor in the way that the model requires it
   def source_tensor(self, item):
     # load image (already preprocessed)
     image = torchvision.io.image.read_image(self.source_filename(item))
@@ -92,18 +99,22 @@ class CelebA:
     # add the required batch dimension
     return image.unsqueeze(0)
 
+  # loads the source image in the way that the CAM techniques require it
+  # Note that both the tensor and the image are returned
   def source_image(self, item):
     # load tensor
     tensor = self.source_tensor(item)
     # convert to CV2-style image
     return tensor, tensor[0].numpy().transpose(1, 2, 0)
 
+  # saves a CAM image, either for a given item/image or an average
   def save_cam(self, activation, overlay, attribute, item=None):
     filename = self.cam_filename(attribute, item)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
     numpy.save(filename+".npy", activation)
 
+  # loads a CAM image, either for a given item/image or an average
   def load_cam(self, attribute, item=None):
     filename = self.cam_filename(attribute, item)
     overlay = torchvision.io.image.read_image(filename).numpy().transpose(1,2,0)

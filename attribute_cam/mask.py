@@ -2,6 +2,7 @@ import numpy as np
 
 from .dataset import ATTRIBUTES
 
+# Creates masks for each attribute where we expect activation
 def get_masks():
 
     dict_masks = {}

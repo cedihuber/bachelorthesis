@@ -5,6 +5,7 @@ import pkg_resources
 
 class AFFACT:
   def __init__(self, model_type, device):
+    # loads the model
     model_file = pkg_resources.resource_filename(__name__, "AFFACT.py")
     weight_file = pkg_resources.resource_filename(__name__, f"AFFACT_{model_type}.pth")
     MainModel = SourceFileLoader("MainModel", model_file).load_module()
@@ -29,9 +30,11 @@ class AFFACT:
   def cam_target_layers(self):
     return [self.network.identity]
 
+  # runs a prediction for all images of the dataset and all attributes, and writes them to file
   def predict_all(self, celeba_dataset, output_file):
     with open(output_file, "w") as w:
       for item in tqdm.tqdm(celeba_dataset):
+        # predict attribute
         prediction = self.predict(celeba_dataset.source_tensor(item))
         w.write(item+",")
         w.write(",".join([f"{value:+1.4f}" for value in prediction]))

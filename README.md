@@ -20,9 +20,9 @@ Implementations of the following scripts can be found in `attribute_cam/script`.
 
 * `extract_cams.py` extracts CAM images for the frontal images of the given model and CAM technique and all attributes. This might take a while.
 
-* `average_cams.py` will compute average CAM images using various filter criteria, based on the ground truth and the prediction for each attribute.
+* `average_cams.py` will compute average CAM images using various filter criteria, based on the ground truth and the prediction for each attribute. This requires both `predict.py` and `extract_cams.py` to have run.
 
-* `analyze.py` evaluates mean (and std) of the acceptable mask ratio measure over all attributes for various filter criteria.
+* `analyze.py` evaluates mean (and std) of the acceptable mask ratio measure over all attributes for various filter criteria. This requires both `predict.py` and `extract_cams.py` to have run.
 
 
 ## Code
