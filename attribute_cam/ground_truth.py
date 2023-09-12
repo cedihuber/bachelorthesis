@@ -1,5 +1,5 @@
-from get_attributes import get_attr
-import pandas as pd 
+from .get_attributes import get_attr
+import pandas as pd
 
 def get_ground_truth(path):
     with open(path, 'r', newline='') as f:
@@ -9,5 +9,5 @@ def get_ground_truth(path):
         df = pd.read_csv(f, sep=' ', skipinitialspace=True, header=None, skiprows=1)
         f.close()
         df.columns = a
-            
+
     return df

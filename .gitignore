@@ -1,0 +1,4 @@
+/result
+/.vscode/*
+**/__pycache__
+attribute_cam.egg-info
