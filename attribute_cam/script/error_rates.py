@@ -48,6 +48,11 @@ def command_line_options():
       choices=['balanced', 'unbalanced'],
       help="Can be balanced or unbalanced"
   )
+  parser.add_argument(
+      "-l", "--latex-file",
+      default="error_rates.tex",
+      help="Select the file where to write errors into"
+  )
   args = parser.parse_args()
 
   return args
@@ -79,7 +84,7 @@ def main():
   counts = attribute_cam.class_counts(args.attributes or attribute_cam.ATTRIBUTES, ground_truth, indexes)
 
   # sort attributes by counts
-  sorted_attributes = [a[1] for a in sorted(((counts[a][0], a) for a in dataset.attributes), reverse=True)]
+  sorted_attributes = [a[1] for a in sorted(((min(counts[a]), a) for a in dataset.attributes), reverse=True)]
 
   # compute error rate
   print(f"Computing error rates")
@@ -98,3 +103,6 @@ def main():
   ]
 
   print(tabulate.tabulate(table, headers = ["Attribute", "Positives"] + ["FNR", "FPR", "Error"]*len(args.model_types)))
+
+  with open(args.latex_file, "w") as w:
+    w.write(tabulate.tabulate(table,tablefmt="latex_raw"))
