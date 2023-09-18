@@ -12,7 +12,7 @@ def command_line_options():
       description="Averages CAM images extracted via `extract_cams.py` from the given dataset using the given cam technique and the given model")
   parser.add_argument(
       '-w', '--which-set',
-      default = "validation",
+      default = "test",
       choices = ("validation", "test"),
       help="Select to process the given part(s) of the dataset"
   )
@@ -20,6 +20,11 @@ def command_line_options():
       '-s', '--source-directory',
       default='/local/scratch/datasets/CelebA/aligned_224x224',
       help="Select directory containing the input dataset"
+  )
+  parser.add_argument(
+      '-p', '--protocol-directory',
+      default='/local/scratch/datasets/CelebA/protocol',
+      help="Select directory containing the original filelists defining the protocol and ground truth of CelebA"
   )
   parser.add_argument(
       '-o', '--output-directory',
@@ -92,7 +97,7 @@ def main():
         cam_directory,
         args.image_count,
         args.attributes,
-        filter_type
+        args.which_set + "-" + filter_type
     )
 
     # create filter based on the ground truth and predictions

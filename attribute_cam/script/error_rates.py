@@ -11,7 +11,7 @@ def command_line_options():
       description="Extracts CAM images for all images from the given dataset using the given cam technique and the given model")
   parser.add_argument(
       '-w', '--which-set',
-      default = "validation",
+      default = "test",
       choices = ("validation", "test"),
       help="Select to process the given part(s) of the dataset"
   )
@@ -96,13 +96,14 @@ def main():
 
   # write table
   table = [
-      [attribute] +
-      [f"{counts[attribute][0] / sum(counts[attribute]):1.3f}"] +
-      [f"{e:1.3f}" for model_type in args.model_types for e in errors[model_type][attribute]]
+      [attribute.replace("_"," ")] +
+      [counts[attribute][0] / sum(counts[attribute])] +
+      [e for e in errors["balanced"][attribute] if "balanced" in args.model_types] +
+      [f"\\bf {e:#.3f}" if i == 0 and counts[attribute][0] < counts[attribute][1] or i == 1 and counts[attribute][0] > counts[attribute][1] else f"{e:#.3f}" for i,e in enumerate(errors["unbalanced"][attribute]) if "unbalanced" in args.model_types]
       for attribute in sorted_attributes
   ]
 
-  print(tabulate.tabulate(table, headers = ["Attribute", "Positives"] + ["FNR", "FPR", "Error"]*len(args.model_types)))
+  print(tabulate.tabulate(table, headers = ["Attribute", "Positives"] + ["FNR", "FPR", "Error"]*len(args.model_types), floatfmt="#.3f"))
 
   with open(args.latex_file, "w") as w:
-    w.write(tabulate.tabulate(table,tablefmt="latex_raw"))
+    w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))
