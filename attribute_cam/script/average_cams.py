@@ -75,8 +75,8 @@ def main():
   cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
 
   # read ground truth and predictions
-  ground_truth_file = "files/ground_truth_celeba.txt"
-  ground_truth = attribute_cam.read_list(ground_truth_file, " ", 1)
+  ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")
+  ground_truth = attribute_cam.read_list(ground_truth_file, " ", 2)
   prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, args.model_type)
   prediction = attribute_cam.read_list(prediction_file, ",", 0)
 
@@ -98,7 +98,7 @@ def main():
     # create filter based on the ground truth and predictions
     filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
 
-    print(f"Avergaging CAMS of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
+    print(f"Averaging CAMS of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
 
     # compute average images
     attribute_cam.average_cam(dataset, filter)

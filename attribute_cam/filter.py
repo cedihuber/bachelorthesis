@@ -8,7 +8,7 @@ def prediction_file(output_directory, which_set, model_type):
 
 # reads CSV lists from file, including ground truth or predictions
 # For each image, it stores a dictionary containing attribute as keys and gt/prediction and value
-def read_list(list_file, delimiter, header_rows):
+def read_list(list_file, delimiter, header_rows, split_attributes=True):
   result = {}
   with open(list_file, "r") as r:
     reader = csv.reader(r, delimiter=delimiter, skipinitialspace=True)
@@ -18,11 +18,15 @@ def read_list(list_file, delimiter, header_rows):
 
     # read values, convert to float and assign attribute
     for splits in reader:
-      assert len(splits) == len(ATTRIBUTES)+1
-      # store values as dictionary
-      result[os.path.splitext(splits[0])[0]] = {
-        attribute : float(splits[i+1]) for i, attribute in enumerate(ATTRIBUTES)
-      }
+      if split_attributes:
+        assert len(splits) == len(ATTRIBUTES)+1
+        # store values as dictionary
+        result[os.path.splitext(splits[0])[0]] = {
+          attribute : float(splits[i+1]) for i, attribute in enumerate(ATTRIBUTES)
+        }
+      else:
+        result[os.path.splitext(splits[0])[0]] = int(splits[1])
+
 
   return result
 

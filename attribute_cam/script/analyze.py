@@ -21,6 +21,11 @@ def command_line_options():
       help="Select directory containing the input dataset"
   )
   parser.add_argument(
+      '-p', '--protocol-directory',
+      default='/local/scratch/datasets/CelebA/protocol',
+      help="Select directory containing the original filelists defining the protocol and ground truth of CelebA"
+  )
+  parser.add_argument(
       '-o', '--output-directory',
       default="./result",
       help="Path to folder where the output should be stored"
@@ -51,9 +56,10 @@ def command_line_options():
   parser.add_argument(
       '-f',
       '--filters',
-      nargs="+",
+      nargs="?",
       default = list(attribute_cam.FILTERS.keys()),
       choices = list(attribute_cam.FILTERS.keys()),
+      const = [],
       help="Average cams images with the given filters"
   )
   parser.add_argument(
@@ -74,8 +80,8 @@ def main():
   cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
 
   # read ground truth and predictions
-  ground_truth_file = "files/ground_truth_celeba.txt"
-  ground_truth = attribute_cam.read_list(ground_truth_file, " ", 1)
+  ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")
+  ground_truth = attribute_cam.read_list(ground_truth_file, " ", 2)
   prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, args.model_type)
   prediction = attribute_cam.read_list(prediction_file, ",", 0)
 
@@ -83,20 +89,21 @@ def main():
   # create masks
   masks, mask_sizes = attribute_cam.get_masks()
 
+  # create dataset
+  dataset = attribute_cam.CelebA(
+      file_lists,
+      args.source_directory,
+      cam_directory,
+      args.image_count,
+      args.attributes
+  )
+
   # compute means and stds of AMR for various filters
   startTime = datetime.now()
   amr_means, amr_stds = {}, {}
   for filter_type in args.filters:
 
-    # create dataset
-    dataset = attribute_cam.CelebA(
-        file_lists,
-        args.source_directory,
-        cam_directory,
-        args.image_count,
-        args.attributes,
-        filter_type
-    )
+    dataset.filter_type=filter_type
 
     # define filters and masks
     filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
@@ -111,17 +118,24 @@ def main():
 
   print(f'The computation of statistics finished within: {datetime.now() - startTime}')
 
+  # compute positive rate
+  index_list = os.path.join(args.protocol_directory, "list_eval_partition.txt")
+  indexes = attribute_cam.read_list(index_list, " ", 0, split_attributes=False)
+  counts = attribute_cam.class_counts(args.attributes or attribute_cam.ATTRIBUTES, ground_truth, indexes)
+
   # compute error rate
   print(f"Computing error rates")
-  errors = attribute_cam.error_rate(dataset, ground_truth, prediction, balanced = args.model_type=="balanced")
+  errors = attribute_cam.error_rate(dataset, ground_truth, prediction)
 
 
   # write table
   table = [
-      [attribute, f"{errors[attribute]:1.3f}"] +
+      [attribute] +
+      [f"{counts[attribute][0] / sum(counts[attribute]):1.3f}"] +
+      [f"{e:1.3f}" for e in errors[attribute]] +
       [
           f"{amr_means[filter_type][attribute][0]:1.3f}" for filter_type in args.filters
       ] for attribute in dataset.attributes
   ]
 
-  print(tabulate.tabulate(table, headers = ["Attribute", "ErrorRate"] + args.filters))
+  print(tabulate.tabulate(table, headers = ["Attribute", "Positives", "FNR", "FPR", "Error"] + args.filters))
