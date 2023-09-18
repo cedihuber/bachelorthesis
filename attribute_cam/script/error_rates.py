@@ -42,24 +42,11 @@ def command_line_options():
       help="Extract CAMS only for the given attributes"
   )
   parser.add_argument(
-      '-m', '--model-type',
-      default='balanced',
+      '-m', '--model-types',
+      nargs="+",
+      default=['balanced', 'unbalanced'],
       choices=['balanced', 'unbalanced'],
       help="Can be balanced or unbalanced"
-  )
-  parser.add_argument(
-      '-c', '--cam-type',
-      default='grad-cam',
-      choices=list(attribute_cam.SUPPORTED_CAM_TYPES.keys()),
-      help="Select the type of CAM method that you want to apply"
-  )
-  parser.add_argument(
-      '-f',
-      '--filters',
-      nargs="+",
-      default = list(attribute_cam.FILTERS.keys()),
-      choices = list(attribute_cam.FILTERS.keys()),
-      help="Average cams images with the given filters"
   )
   args = parser.parse_args()
 
@@ -71,54 +58,43 @@ def main():
 
   # obtain list file containing the data
   file_lists = [f"files/aligned_224x224_{args.which_set}_filtered_0.1.txt"]
-  cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
+#  cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
 
   # read ground truth and predictions
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")
   ground_truth = attribute_cam.read_list(ground_truth_file, " ", 2)
-  prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, args.model_type)
-  prediction = attribute_cam.read_list(prediction_file, ",", 0)
-
-
-  # create masks
-  masks, mask_sizes = attribute_cam.get_masks()
 
   # create dataset
   dataset = attribute_cam.CelebA(
       file_lists,
       args.source_directory,
-      cam_directory,
+      None,
       args.image_count,
       args.attributes
   )
 
-  # compute means and stds of AMR for various filters
-  startTime = datetime.now()
-  amr_means, amr_stds = {}, {}
-  for filter_type in args.filters:
+  # compute positive rate
+  index_list = os.path.join(args.protocol_directory, "list_eval_partition.txt")
+  indexes = attribute_cam.read_list(index_list, " ", 0, split_attributes=False)
+  counts = attribute_cam.class_counts(args.attributes or attribute_cam.ATTRIBUTES, ground_truth, indexes)
 
-    dataset.filter_type=filter_type
+  # sort attributes by counts
+  sorted_attributes = [a[1] for a in sorted(((counts[a][0], a) for a in dataset.attributes), reverse=True)]
 
-    # define filters and masks
-    filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
-
-    print(f"Analyzing CAMS of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
-
-    # compute acceptable mask ratios
-    means, stds = attribute_cam.amr_statisics(dataset, filter, masks, mask_sizes)
-
-    amr_means[filter_type] = means
-    amr_stds[filter_type] = stds
-
-  print(f'The computation of statistics finished within: {datetime.now() - startTime}')
-
+  # compute error rate
+  print(f"Computing error rates")
+  errors = {}
+  for model_type in args.model_types:
+    prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, model_type)
+    prediction = attribute_cam.read_list(prediction_file, ",", 0)
+    errors[model_type] = attribute_cam.error_rate(dataset, ground_truth, prediction)
 
   # write table
   table = [
       [attribute] +
-      [
-          f"{amr_means[filter_type][attribute][0]:1.3f}" for filter_type in args.filters
-      ] for attribute in dataset.attributes
+      [f"{counts[attribute][0] / sum(counts[attribute]):1.3f}"] +
+      [f"{e:1.3f}" for model_type in args.model_types for e in errors[model_type][attribute]]
+      for attribute in sorted_attributes
   ]
 
-  print(tabulate.tabulate(table, headers = ["Attribute"] + args.filters))
+  print(tabulate.tabulate(table, headers = ["Attribute", "Positives"] + ["FNR", "FPR", "Error"]*len(args.model_types)))

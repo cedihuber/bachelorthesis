@@ -52,7 +52,8 @@ setup(
           "extract_cams.py       = attribute_cam.script.extract_cams:main",
           "predict.py            = attribute_cam.script.predict:main",
           "average_cams.py       = attribute_cam.script.average_cams:main",
-          "analyze.py            = attribute_cam.script.analyze:main"
+          "analyze.py            = attribute_cam.script.analyze:main",
+          "error_rates.py        = attribute_cam.script.error_rates:main"
       ],
     },
 
