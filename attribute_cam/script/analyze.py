@@ -56,10 +56,9 @@ def command_line_options():
   parser.add_argument(
       '-f',
       '--filters',
-      nargs="?",
+      nargs="*",
       default = list(attribute_cam.FILTERS.keys()),
       choices = list(attribute_cam.FILTERS.keys()),
-      const = [],
       help="Average cams images with the given filters"
   )
   parser.add_argument(
