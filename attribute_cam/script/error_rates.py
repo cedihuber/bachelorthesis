@@ -98,8 +98,8 @@ def main():
   table = [
       [attribute.replace("_"," ")] +
       [counts[attribute][0] / sum(counts[attribute])] +
-      [e for e in errors["balanced"][attribute] if "balanced" in args.model_types] +
-      [f"\\bf {e:#.3f}" if i == 0 and counts[attribute][0] < counts[attribute][1] or i == 1 and counts[attribute][0] > counts[attribute][1] else f"{e:#.3f}" for i,e in enumerate(errors["unbalanced"][attribute]) if "unbalanced" in args.model_types]
+      [f"\\bf {e:#.3f}" if i == 0 and counts[attribute][0] < counts[attribute][1] or i == 1 and counts[attribute][0] > counts[attribute][1] else f"{e:#.3f}" for i,e in enumerate(errors["unbalanced"][attribute]) if "unbalanced" in args.model_types] +
+      [e for e in errors["balanced"][attribute] if "balanced" in args.model_types]
       for attribute in sorted_attributes
   ]
 

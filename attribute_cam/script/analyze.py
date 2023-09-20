@@ -11,7 +11,7 @@ def command_line_options():
       description="Extracts CAM images for all images from the given dataset using the given cam technique and the given model")
   parser.add_argument(
       '-w', '--which-set',
-      default = "validation",
+      default = "test",
       choices = ("validation", "test"),
       help="Select to process the given part(s) of the dataset"
   )
@@ -42,9 +42,10 @@ def command_line_options():
       help="Extract CAMS only for the given attributes"
   )
   parser.add_argument(
-      '-m', '--model-type',
-      default='balanced',
-      choices=['balanced', 'unbalanced'],
+      '-m', '--model-types',
+      nargs="+",
+      default=['unbalanced', 'balanced'],
+      choices=['unbalanced', 'balanced'],
       help="Can be balanced or unbalanced"
   )
   parser.add_argument(
@@ -57,9 +58,24 @@ def command_line_options():
       '-f',
       '--filters',
       nargs="+",
-      default = list(attribute_cam.FILTERS.keys()),
+      default = ["gt=1", "gt=-1"],
       choices = list(attribute_cam.FILTERS.keys()),
       help="Average cams images with the given filters"
+  )
+  parser.add_argument(
+      "-e", "--prop-energy",
+      action="store_false",
+      help="Disable proportional energy computation (use AMR instead)"
+  )
+  parser.add_argument(
+      "-n", "--normalize-error",
+      action="store_true",
+      help="Compute normalized energy or AMR values"
+  )
+  parser.add_argument(
+      "-l", "--latex-file",
+      default="proportional_energy.tex",
+      help="Select the file where to write errors into"
   )
   args = parser.parse_args()
 
@@ -71,54 +87,72 @@ def main():
 
   # obtain list file containing the data
   file_lists = [f"files/aligned_224x224_{args.which_set}_filtered_0.1.txt"]
-  cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
 
-  # read ground truth and predictions
+  # read ground truth
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")
   ground_truth = attribute_cam.read_list(ground_truth_file, " ", 2)
-  prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, args.model_type)
-  prediction = attribute_cam.read_list(prediction_file, ",", 0)
 
 
   # create masks
   masks, mask_sizes = attribute_cam.get_masks()
 
-  # create dataset
-  dataset = attribute_cam.CelebA(
-      file_lists,
-      args.source_directory,
-      cam_directory,
-      args.image_count,
-      args.attributes
-  )
-
   # compute means and stds of AMR for various filters
   startTime = datetime.now()
-  amr_means, amr_stds = {}, {}
-  for filter_type in args.filters:
+  means, stds = {}, {}
 
-    dataset.filter_type=filter_type
+  for model_type in args.model_types:
+    # read predictions
+    prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, model_type)
+    prediction = attribute_cam.read_list(prediction_file, ",", 0)
+    cam_directory = os.path.join(args.output_directory, model_type, args.cam_type)
 
-    # define filters and masks
-    filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
+    # create dataset
+    dataset = attribute_cam.CelebA(
+        file_lists,
+        args.source_directory,
+        cam_directory,
+        args.image_count,
+        args.attributes
+    )
 
-    print(f"Analyzing CAMS of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
+    for filter_type in args.filters:
 
-    # compute acceptable mask ratios
-    means, stds = attribute_cam.amr_statisics(dataset, filter, masks, mask_sizes)
+      dataset.filter_type=filter_type
 
-    amr_means[filter_type] = means
-    amr_stds[filter_type] = stds
+      # define filters and masks
+      filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
+
+      print(f"Analyzing CAMS of type {args.cam_type} for {filter_type} filter, model {model_type} and {len(dataset.attributes)} attributes")
+
+      # compute acceptable mask ratios
+      stats = attribute_cam.statisics(dataset, filter, masks, mask_sizes, prop_energy=args.prop_energy)
+
+      means[(model_type,filter_type)] = stats[0]
+      stds[(model_type,filter_type)] = stats[1]
 
   print(f'The computation of statistics finished within: {datetime.now() - startTime}')
 
+  # compute positive rate
+  index_list = os.path.join(args.protocol_directory, "list_eval_partition.txt")
+  indexes = attribute_cam.read_list(index_list, " ", 0, split_attributes=False)
+  counts = attribute_cam.class_counts(args.attributes or attribute_cam.ATTRIBUTES, ground_truth, indexes)
+
+  # sort attributes by counts
+  sorted_attributes = [a[1] for a in sorted(((min(counts[a]), a) for a in dataset.attributes), reverse=True)]
+
+  index = 1 if args.normalize_error else 0
 
   # write table
   table = [
-      [attribute] +
-      [
-          f"{amr_means[filter_type][attribute][0]:1.3f}" for filter_type in args.filters
-      ] for attribute in dataset.attributes
+      [attribute.replace("_"," ")] +
+      [counts[attribute][0] / sum(counts[attribute])] +
+      [f"\\bf {means[('unbalanced',filter_type)][attribute][index]:#.3f}" if filter_type == "gt=-1" and counts[attribute][0] < counts[attribute][1] or filter_type == "gt=1" and counts[attribute][0] > counts[attribute][1] else f"{means[('unbalanced',filter_type)][attribute][index]:#.3f}" for filter_type in args.filters if "unbalanced" in args.model_types] +
+      [means[("balanced",filter_type)][attribute][index] for filter_type in args.filters if "balanced" in args.model_types]
+#          means[(model_type,filter_type)][attribute][0] for model_type in args.model_types for filter_type in args.filters
+      for attribute in sorted_attributes
   ]
 
-  print(tabulate.tabulate(table, headers = ["Attribute"] + args.filters))
+  print(tabulate.tabulate(table, headers = ["Attribute","Positives"] + args.filters * len(args.model_types), floatfmt="#.3f"))
+
+  with open(args.latex_file, "w") as w:
+    w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))

@@ -28,29 +28,36 @@ def proportional_energy(activation, mask, mask_size):
   # .. total energy in the image
   total = numpy.sum(activation)
 
-  prop_energy = pos / total
-  # corrected proportional energy
-  prop_energy_corrected = (prop_energy * ((mask.size-mask_size)/mask.size))
-  return prop_energy, prop_energy_corrected
+  if total:
+    prop_energy = pos / total
+    # corrected proportional energy
+    prop_energy_corrected = (prop_energy * ((mask.size-mask_size)/mask.size))
+    return prop_energy, prop_energy_corrected
+  else:
+    # no activation
+    return 0., 0.
 
 
-def amr_statisics(celeba_dataset, filter_function, masks, mask_sizes):
+def statisics(celeba_dataset, filter_function, masks, mask_sizes, prop_energy=True):
 
   means = {}
   stds = {}
   for attribute in tqdm.tqdm(celeba_dataset.attributes):
     # compute AMR and corrected AMR for this attribute
-    amr = []
+    rates = []
     for image_index in celeba_dataset:
       if filter_function(image_index, attribute):
         activation, _ = celeba_dataset.load_cam(attribute, image_index)
 
-        amr.append(accetptable_mask_ratio(activation,masks[attribute],mask_sizes[attribute]))
+        if prop_energy:
+          rates.append(proportional_energy(activation,masks[attribute],mask_sizes[attribute]))
+        else:
+          rates.append(accetptable_mask_ratio(activation,masks[attribute],mask_sizes[attribute]))
 
     # compute mean and std
-    if amr:
-      means[attribute] = numpy.mean(amr, axis=0)
-      stds[attribute] = numpy.std(amr, axis=0)
+    if rates:
+      means[attribute] = numpy.mean(rates, axis=0)
+      stds[attribute] = numpy.std(rates, axis=0)
     else:
       means[attribute] = [0,0]
       stds[attribute] = [0,0]
