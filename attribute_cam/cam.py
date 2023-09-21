@@ -1,6 +1,7 @@
 import pytorch_grad_cam
 import numpy
 import tqdm
+import os
 
 
 # The different functions to create CAM images
@@ -31,7 +32,7 @@ class CAM:
     self.cam_class = SUPPORTED_CAM_TYPES[cam_type]
 
 
-  def generate_cam(self, affact_model, celeba_dataset, use_cuda=True):
+  def generate_cam(self, affact_model, celeba_dataset, use_cuda=True, force=False):
     # instantiate the CAM algorithm for the given model
     with self.cam_class(
       model = affact_model.model(),
@@ -45,16 +46,18 @@ class CAM:
 
         for attribute, index in celeba_dataset.attributes.items():
 
-          # extract cam for the current attribute
-          targets = [BinaryCategoricalClassifierOutputTarget(index)]
-          activation = cam(tensor, targets)[0]
+          if not os.path.isfile(celeba_dataset.cam_filename(attribute, image_index)) or force:
 
-          # NOTE: The source image for this function is float in range [0,1]
-          # the ouput of it is uint8 in range [0,255]
-          overlay = pytorch_grad_cam.utils.image.show_cam_on_image(image, activation, use_rgb=True)
+            # extract cam for the current attribute
+            targets = [BinaryCategoricalClassifierOutputTarget(index)]
+            activation = cam(tensor, targets)[0]
 
-          # save CAM activation
-          celeba_dataset.save_cam(activation, overlay, attribute, image_index)
+            # NOTE: The source image for this function is float in range [0,1]
+            # the ouput of it is uint8 in range [0,255]
+            overlay = pytorch_grad_cam.utils.image.show_cam_on_image(image, activation, use_rgb=True)
+
+            # save CAM activation
+            celeba_dataset.save_cam(activation, overlay, attribute, image_index)
 
 
 # Averages CAM images over the whole dataset, filtered by the given filter function

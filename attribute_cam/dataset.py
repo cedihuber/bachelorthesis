@@ -120,3 +120,22 @@ class CelebA:
     overlay = torchvision.io.image.read_image(filename).numpy().transpose(1,2,0)
     activation = numpy.load(filename + ".npy")
     return activation, overlay
+
+
+# create several dataset objects with reduced number of samples, split across all dataset instances
+def split_dataset(number_of_splits, *args, **kwargs):
+  # create several datasets
+  datasets = [CelebA(*args, **kwargs) for n in range(number_of_splits)]
+
+  # split the number of samples
+  total_samples = len(datasets[0])
+  number_of_samples_per_split =  total_samples // number_of_splits
+
+  # limit samples per dataset
+  indexes = [number_of_samples_per_split * n for n in range(number_of_splits)] + [total_samples]
+
+  for n in range(number_of_splits):
+    datasets[n].images = datasets[n].images[indexes[n]:indexes[n+1]]
+
+  assert sum(len(dataset) for dataset in datasets) == total_samples
+  return datasets

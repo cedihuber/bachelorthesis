@@ -1,7 +1,6 @@
 import argparse
 import os
 from datetime import datetime
-from tqdm import tqdm
 import attribute_cam
 #from get_shifted_landmarks import get_shifted_landmarks_df
 
@@ -51,6 +50,16 @@ def command_line_options():
       help="Select the type of CAM method that you want to apply"
   )
   parser.add_argument(
+      "-f", "--force",
+      action="store_true",
+      help="If selected, files will be overwritten if they already exist, otherwise existing files will be skipped"
+	)
+  parser.add_argument(
+      '-p', '--parallel',
+      type=int,
+      help="If selected, the extraction will run in the given number of parallel processes (on one GPU only)"
+  )
+  parser.add_argument(
       '--gpu',
       action="store_false",
       help='Do not use GPU acceleration (will be **disabled** when selected)'
@@ -59,14 +68,44 @@ def command_line_options():
 
   return args
 
+def _run_extraction(params):
+  args, index = params
+  global datasets
+  dataset = datasets[index]
+  print(f"Generating CAMS of type {args.cam_type} for {len(dataset)} images and {len(dataset.attributes)} attributes")
+  # create CAM module
+  cam = attribute_cam.CAM(args.cam_type)
+  # load AFFACT model
+  affact = attribute_cam.AFFACT(args.model_type, "cuda" if args.gpu else "cpu")
+
+  # generate CAMs
+  cam.generate_cam(affact,dataset,args.gpu,args.force)
+
+
 
 def main():
-    args = command_line_options()
+  args = command_line_options()
 
-    # create dataset
-    file_lists = [f"files/aligned_224x224_{which}_filtered_0.1.txt" for which in args.which_sets]
-    cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
-    dataset = attribute_cam.CelebA(
+  # create dataset
+  file_lists = [f"files/aligned_224x224_{which}_filtered_0.1.txt" for which in args.which_sets]
+  cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
+
+  startTime = datetime.now()
+
+  global datasets
+  if args.parallel is None:
+    datasets = [attribute_cam.CelebA(
+        file_lists,
+        args.source_directory,
+        cam_directory,
+        args.image_count,
+        args.attributes
+    )]
+    _run_extraction(0)
+
+  else:
+    datasets = attribute_cam.split_dataset(
+        args.parallel,
         file_lists,
         args.source_directory,
         cam_directory,
@@ -74,15 +113,8 @@ def main():
         args.attributes
     )
 
-    print(f"Generating CAMS of type {args.cam_type} for {len(dataset)} images and {len(dataset.attributes)} attributes")
+    import multiprocessing
+    pool = multiprocessing.Pool(args.parallel)
+    pool.map(_run_extraction, [(args,i) for i in range(args.parallel)])
 
-    # create CAM module
-    cam = attribute_cam.CAM(args.cam_type)
-    # load AFFACT model
-    affact = attribute_cam.AFFACT(args.model_type, "cuda" if args.gpu else "cpu")
-
-    # generate CAMs
-    startTime = datetime.now()
-    cam.generate_cam(affact,dataset,args.gpu)
-
-    print(f'The generation of CAMs finished within: {datetime.now() - startTime}')
+  print(f'The generation of CAMs finished within: {datetime.now() - startTime}')
