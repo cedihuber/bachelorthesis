@@ -74,7 +74,7 @@ def command_line_options():
   )
   parser.add_argument(
       "-l", "--latex-file",
-      default="proportional_energy.tex",
+      default="result_table.tex",
       help="Select the file where to write errors into"
   )
   args = parser.parse_args()
@@ -132,6 +132,14 @@ def main():
 
   print(f'The computation of statistics finished within: {datetime.now() - startTime}')
 
+  print(f"Computing error rates")
+  errors = {}
+  for model_type in args.model_types:
+    prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, model_type)
+    prediction = attribute_cam.read_list(prediction_file, ",", 0)
+    errors[model_type] = attribute_cam.error_rate(dataset, ground_truth, prediction) # we exclude TER here
+
+
   # compute positive rate
   index_list = os.path.join(args.protocol_directory, "list_eval_partition.txt")
   indexes = attribute_cam.read_list(index_list, " ", 0, split_attributes=False)
@@ -144,15 +152,23 @@ def main():
 
   # write table
   table = [
+      # Attributes
       [attribute.replace("_"," ")] +
+      # Relative counts
       [counts[attribute][0] / sum(counts[attribute])] +
+      # error rates on unbalanced model, including highlights
+      [f"\\bf {e:#.3f}" if i == 0 and counts[attribute][0] < counts[attribute][1] or i == 1 and counts[attribute][0] > counts[attribute][1] else f"{e:#.3f}" for i,e in enumerate(errors["unbalanced"][attribute][:2]) if "unbalanced" in args.model_types] +
+      # error rates on balanced model
+      [e for e in errors["balanced"][attribute][:2] if "balanced" in args.model_types] +
+      # proportional energy on unbalanced model, including highlights
       [f"\\bf {means[('unbalanced',filter_type)][attribute][index]:#.3f}" if filter_type == "gt=-1" and counts[attribute][0] < counts[attribute][1] or filter_type == "gt=1" and counts[attribute][0] > counts[attribute][1] else f"{means[('unbalanced',filter_type)][attribute][index]:#.3f}" for filter_type in args.filters if "unbalanced" in args.model_types] +
+      # proportional energy on balanced model
       [means[("balanced",filter_type)][attribute][index] for filter_type in args.filters if "balanced" in args.model_types]
-#          means[(model_type,filter_type)][attribute][0] for model_type in args.model_types for filter_type in args.filters
+      # for all attributes
       for attribute in sorted_attributes
   ]
 
-  print(tabulate.tabulate(table, headers = ["Attribute","Positives"] + args.filters * len(args.model_types), floatfmt="#.3f"))
+  print(tabulate.tabulate(table, headers = ["Attribute","Positives"] + ["FNR", "FPR"] * len(args.model_types) + args.filters * len(args.model_types), floatfmt="#.3f"))
 
   with open(args.latex_file, "w") as w:
     w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))
