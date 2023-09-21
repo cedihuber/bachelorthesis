@@ -1,4 +1,7 @@
 import numpy as np
+import torch
+import torchvision
+import os
 
 from .dataset import ATTRIBUTES
 
@@ -175,3 +178,17 @@ def get_masks():
     sizes = {ATTRIBUTES[i]: size for i,size in dict_sizes.items()}
 
     return masks, sizes
+
+def write_masks(masks, image_name, directory):
+    image = torchvision.io.image.read_image(image_name)
+    os.makedirs(directory, exist_ok=True)
+    torchvision.io.write_png(image, os.path.join(directory, "original.png"))
+    for attribute,mask in masks.items():
+        # write mask to file
+        maskname = os.path.join(directory, attribute + "_mask.png")
+        torchvision.io.write_png(torch.as_tensor([mask,mask,mask]), maskname)
+
+        # write masked image to file
+        overlay_image = np.where(mask>0,image,0)
+        overlayname = os.path.join(directory, attribute + "_overlay.png")
+        torchvision.io.write_png(torch.tensor(overlay_image, dtype=torch.uint8), overlayname)

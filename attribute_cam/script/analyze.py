@@ -77,6 +77,15 @@ def command_line_options():
       default="result_table.tex",
       help="Select the file where to write errors into"
   )
+  parser.add_argument(
+    "-O", "--overlay-image",
+    help="If provided, the masks will be overlayed to the given image and saved to the --mask-directory"
+  )
+  parser.add_argument(
+    "-M", "--mask-directory",
+    default="masks",
+    help="Select the directory where to save the masks into"
+  )
   args = parser.parse_args()
 
   return args
@@ -95,6 +104,10 @@ def main():
 
   # create masks
   masks, mask_sizes = attribute_cam.get_masks()
+
+  if args.overlay_image is not None:
+    # write masks overlayed with the given image
+    attribute_cam.write_masks(masks, os.path.join(args.source_directory, args.overlay_image), args.mask_directory)
 
   # compute means and stds of AMR for various filters
   startTime = datetime.now()
