@@ -6,7 +6,10 @@ import tqdm
 # The different functions to create CAM images
 # TODO: Add more
 SUPPORTED_CAM_TYPES={
-  "grad-cam": pytorch_grad_cam.GradCAM
+  "grad-cam": pytorch_grad_cam.GradCAM,
+  "score-cam": pytorch_grad_cam.ScoreCAM,
+  "hirescam": pytorch_grad_cam.HiResCAM,
+  "fullgrad_cam": pytorch_grad_cam.FullGrad
 }
 
 
