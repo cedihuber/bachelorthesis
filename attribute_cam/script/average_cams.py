@@ -58,14 +58,9 @@ def command_line_options():
       '-f',
       '--filters',
       nargs="+",
-      default = list(attribute_cam.FILTERS.keys()),
+      default = ["pr=1","pr=-1"],
       choices = list(attribute_cam.FILTERS.keys()),
       help="Average cams images with the given filters"
-  )
-  parser.add_argument(
-      '--gpu',
-      action="store_false",
-      help='Do not use GPU acceleration (will be **disabled** when selected)'
   )
   args = parser.parse_args()
 

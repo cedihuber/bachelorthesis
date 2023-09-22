@@ -58,7 +58,7 @@ def command_line_options():
       '-f',
       '--filters',
       nargs="+",
-      default = ["gt=1", "gt=-1"],
+      default = ["pr=1", "pr=-1"],
       choices = list(attribute_cam.FILTERS.keys()),
       help="Average cams images with the given filters"
   )
@@ -174,7 +174,7 @@ def main():
       # error rates on balanced model
       [e for e in errors["balanced"][attribute][:2] if "balanced" in args.model_types] +
       # proportional energy on unbalanced model, including highlights
-      [f"\\bf {means[('unbalanced',filter_type)][attribute][index]:#.3f}" if filter_type == "gt=-1" and counts[attribute][0] < counts[attribute][1] or filter_type == "gt=1" and counts[attribute][0] > counts[attribute][1] else f"{means[('unbalanced',filter_type)][attribute][index]:#.3f}" for filter_type in args.filters if "unbalanced" in args.model_types] +
+      [f"\\bf {means[('unbalanced',filter_type)][attribute][index]:#.3f}" if filter_type == "pr=-1" and counts[attribute][0] < counts[attribute][1] or filter_type == "pr=1" and counts[attribute][0] > counts[attribute][1] else f"{means[('unbalanced',filter_type)][attribute][index]:#.3f}" for filter_type in args.filters if "unbalanced" in args.model_types] +
       # proportional energy on balanced model
       [means[("balanced",filter_type)][attribute][index] for filter_type in args.filters if "balanced" in args.model_types]
       # for all attributes
