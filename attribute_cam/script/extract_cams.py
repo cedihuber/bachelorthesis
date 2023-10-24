@@ -60,6 +60,11 @@ def command_line_options():
       help="If selected, the extraction will run in the given number of parallel processes (on one GPU only)"
   )
   parser.add_argument(
+      '-X', '--standard-target',
+      action="store_true",
+      help="Use the standard ClassifierTargetOutput for generating CAM images"
+  )
+  parser.add_argument(
       '--gpu',
       action="store_false",
       help='Do not use GPU acceleration (will be **disabled** when selected)'
@@ -74,7 +79,11 @@ def _run_extraction(params):
   dataset = datasets[index]
   print(f"Generating CAMS of type {args.cam_type} for {len(dataset)} images and {len(dataset.attributes)} attributes")
   # create CAM module
-  cam = attribute_cam.CAM(args.cam_type)
+  if args.standard_target:
+    import pytorch_grad_cam
+    cam = attribute_cam.CAM(args.cam_type, pytorch_grad_cam.utils.model_targets.ClassifierOutputTarget)
+  else:
+    cam = attribute_cam.CAM(args.cam_type)
   # load AFFACT model
   affact = attribute_cam.AFFACT(args.model_type, "cuda" if args.gpu else "cpu")
 
@@ -101,7 +110,7 @@ def main():
         args.image_count,
         args.attributes
     )]
-    _run_extraction(0)
+    _run_extraction((args,0))
 
   else:
     datasets = attribute_cam.split_dataset(

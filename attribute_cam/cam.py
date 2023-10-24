@@ -27,9 +27,10 @@ class BinaryCategoricalClassifierOutputTarget:
 
 # computes the CAM images and saves them in the target directory
 class CAM:
-  def __init__(self, cam_type):
+  def __init__(self, cam_type, output_target_class = BinaryCategoricalClassifierOutputTarget):
     # store the type of CAM algorithm that we want to use
     self.cam_class = SUPPORTED_CAM_TYPES[cam_type]
+    self.output_target_class = output_target_class
 
 
   def generate_cam(self, affact_model, celeba_dataset, use_cuda=True, force=False):
@@ -49,7 +50,7 @@ class CAM:
           if not os.path.isfile(celeba_dataset.cam_filename(attribute, image_index)) or force:
 
             # extract cam for the current attribute
-            targets = [BinaryCategoricalClassifierOutputTarget(index)]
+            targets = [self.output_target_class(index)]
             activation = cam(tensor, targets)[0]
 
             # NOTE: The source image for this function is float in range [0,1]
