@@ -3,6 +3,9 @@ import os
 from datetime import datetime
 import attribute_cam
 import tabulate
+from matplotlib import pyplot
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 
 def command_line_options():
@@ -52,6 +55,11 @@ def command_line_options():
       "-l", "--latex-file",
       default="error_rates.tex",
       help="Select the file where to write errors into"
+  )
+  parser.add_argument(
+      '-P', "--pdf-file",
+      default="error_rates.pdf",
+      help = "Select the file to include the plots"
   )
   args = parser.parse_args()
 
@@ -107,3 +115,30 @@ def main():
 
   with open(args.latex_file, "w") as w:
     w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))
+
+
+  # create plot
+  print(f"Plotting")
+  pdf = PdfPages(args.pdf_file)
+
+  try:
+    colors = ["red", "green"]
+    labels = ["False Negative Rate", "False Positive Rate"]
+    for model_type in args.model_types:
+      fig = pyplot.figure(figsize=(20,5))
+      for i, attribute in enumerate(sorted_attributes):
+        majority = 0 if counts[attribute][0] > counts[attribute][1] else 1
+        pyplot.bar([i], [errors[model_type][attribute][1-majority]], color=colors[majority], align="center", label=labels[majority] if not i else None)
+        pyplot.bar([i], [-errors[model_type][attribute][majority]], color=colors[1-majority], align="center", label=labels[1-majority] if not i else None)
+
+      pyplot.xticks(range(len(sorted_attributes)), [" " + a.replace("_", " ") for a in sorted_attributes], va="top", ha='center', rotation=90., size=14)
+      pyplot.xlim([-.5,len(sorted_attributes)-.5])
+#      pyplot.ylabel("Prediction Error", size=12)
+      pyplot.text(-2,.15, "MinPE", rotation=90, va="center", size=14)
+      pyplot.text(-2,-.15, "MajPE", rotation=90, va="center", size=14)
+      pyplot.legend(loc="upper right", ncols=2, prop={"size":14})
+      pyplot.tight_layout()
+
+      pdf.savefig(fig, pad_inches=0)
+  finally:
+    pdf.close()
