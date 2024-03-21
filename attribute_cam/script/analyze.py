@@ -17,12 +17,12 @@ def command_line_options():
   )
   parser.add_argument(
       '-s', '--source-directory',
-      default='/local/scratch/datasets/CelebA/aligned_224x224',
+      default='CelebA/aligned_224x224',
       help="Select directory containing the input dataset"
   )
   parser.add_argument(
       '-p', '--protocol-directory',
-      default='/local/scratch/datasets/CelebA/protocol',
+      default='CelebA/protocol',
       help="Select directory containing the original filelists defining the protocol and ground truth of CelebA"
   )
   parser.add_argument(
@@ -95,7 +95,7 @@ def main():
   args = command_line_options()
 
   # obtain list file containing the data
-  file_lists = [f"files/aligned_224x224_{args.which_set}_filtered_0.1.txt"]
+  file_lists = [os.oath.join(args.protocol_directoy, f"aligned_224x224_{args.which_set}_filtered_0.1.txt")]
 
   # read ground truth
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")

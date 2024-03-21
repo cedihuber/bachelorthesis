@@ -18,8 +18,13 @@ def command_line_options():
   )
   parser.add_argument(
       '-s', '--source-directory',
-      default='/local/scratch/datasets/CelebA/aligned_224x224',
+      default='CelebA/aligned_224x224',
       help="Select directory containing the input dataset"
+  )
+  parser.add_argument(
+      '-p', '--protocol-directory',
+      default='CelebA/protocol',
+      help="Select directory containing the original filelists defining the protocol and ground truth of CelebA"
   )
   parser.add_argument(
       '-o', '--output-directory',
@@ -96,7 +101,7 @@ def main():
   args = command_line_options()
 
   # create dataset
-  file_lists = [f"files/aligned_224x224_{which}_filtered_0.1.txt" for which in args.which_sets]
+  file_lists = [os.path.join(args.protocol_directory, f"aligned_224x224_{which}_filtered_0.1.txt") for which in args.which_sets]
   cam_directory = os.path.join(args.output_directory, args.model_type, args.cam_type)
 
   startTime = datetime.now()

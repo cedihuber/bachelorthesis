@@ -2,3 +2,7 @@
 /.vscode/*
 **/__pycache__
 attribute_cam.egg-info
+model/AFFACT.py
+model/AFFACT_balanced.pth
+model/AFFACT_unbalanced.pth
+CelebA/aligned_224x224

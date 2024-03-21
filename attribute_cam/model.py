@@ -6,8 +6,8 @@ import pkg_resources
 class AFFACT:
   def __init__(self, model_type, device):
     # loads the model
-    model_file = pkg_resources.resource_filename(__name__, "AFFACT.py")
-    weight_file = pkg_resources.resource_filename(__name__, f"AFFACT_{model_type}.pth")
+    model_file = pkg_resources.resource_filename(__name__, "..", "model", "AFFACT.py")
+    weight_file = pkg_resources.resource_filename(__name__, "..", "model", f"AFFACT_{model_type}.pth")
     MainModel = SourceFileLoader("MainModel", model_file).load_module()
     network = torch.load(weight_file)
     # we have to add the Identity layer afterward since the original weights do not include it
