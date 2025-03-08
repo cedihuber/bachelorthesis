@@ -24,42 +24,42 @@ class BinaryCategoricalClassifierOutputTarget:
       return abs(model_output[self.category])
     return abs(model_output[:, self.category])
 
-
 # computes the CAM images and saves them in the target directory
 class CAM:
   def __init__(self, cam_type, output_target_class = BinaryCategoricalClassifierOutputTarget):
     # store the type of CAM algorithm that we want to use
     self.cam_class = SUPPORTED_CAM_TYPES[cam_type]
     self.output_target_class = output_target_class
-
-
+ 
+ 
   def generate_cam(self, affact_model, celeba_dataset, use_cuda=True, force=False):
     # instantiate the CAM algorithm for the given model
+    # breakpoint()
     with self.cam_class(
       model = affact_model.model(),
       target_layers = affact_model.cam_target_layers(),
-      use_cuda = use_cuda
+      # uses_gradients = use_cuda
     ) as cam:
-
+ 
       for image_index in tqdm.tqdm(celeba_dataset):
         # load image
         tensor, image = celeba_dataset.source_image(image_index)
-
+ 
         for attribute, index in celeba_dataset.attributes.items():
-
+ 
           if not os.path.isfile(celeba_dataset.cam_filename(attribute, image_index)) or force:
-
+ 
             # extract cam for the current attribute
             targets = [self.output_target_class(index)]
             activation = cam(tensor, targets)[0]
-
+ 
             # NOTE: The source image for this function is float in range [0,1]
             # the ouput of it is uint8 in range [0,255]
             overlay = pytorch_grad_cam.utils.image.show_cam_on_image(image, activation, use_rgb=True)
-
+ 
             # save CAM activation
             celeba_dataset.save_cam(activation, overlay, attribute, image_index)
-
+ 
 
 # Averages CAM images over the whole dataset, filtered by the given filter function
 def average_cam(celeba_dataset, filter_function):
@@ -73,6 +73,7 @@ def average_cam(celeba_dataset, filter_function):
       # apply filter function to get only the images that we want
       if filter_function(image_index,attribute):
         # load images
+        print(image_index,end="\n")
         activation, overlay = celeba_dataset.load_cam(attribute, image_index)
         # compute average
         overlays += overlay
