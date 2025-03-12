@@ -65,6 +65,7 @@ class CelebA:
     # load image lists
     self.images = [os.path.splitext(i)[0] for filtered_list in filtered_lists for n,i in enumerate(open(filtered_list, 'r'))  if i and n < number_of_images]
 
+
   # implements the iterator interface by iterating over all images
   def __iter__(self):
     self.queue = collections.deque(self.images)

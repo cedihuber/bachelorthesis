@@ -53,7 +53,8 @@ setup(
           "predict.py            = attribute_cam.script.predict:main",
           "average_cams.py       = attribute_cam.script.average_cams:main",
           "analyze.py            = attribute_cam.script.analyze:main",
-          "error_rates.py        = attribute_cam.script.error_rates:main"
+          "error_rates.py        = attribute_cam.script.error_rates:main",
+          "perturb_image.py        = attribute_cam.script.perturb_image:main"
       ],
     },
 

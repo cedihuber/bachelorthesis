@@ -8,8 +8,8 @@ class AFFACT:
     # loads the model
     #model_file = pkg_resources.resource_filename(__name__, "..", "model", "AFFACT.py")
     #weight_file = pkg_resources.resource_filename(__name__, "..", "model", f"AFFACT_{model_type}.pth")
-    model_file = "/home/user/chuber/attribute-cam-main/model/AFFACT.py"
-    weight_file = f"/home/user/chuber/attribute-cam-main/model/AFFACT_{model_type}.pth"
+    model_file = "/home/user/chuber/attribute-cam/model/AFFACT.py"
+    weight_file = f"/home/user/chuber/attribute-cam/model/AFFACT_{model_type}.pth"
     MainModel = SourceFileLoader("MainModel", model_file).load_module()
     network = torch.load(weight_file)
     # we have to add the Identity layer afterward since the original weights do not include it
@@ -36,6 +36,16 @@ class AFFACT:
   def predict_all(self, celeba_dataset, output_file):
     with open(output_file, "w") as w:
       for item in tqdm.tqdm(celeba_dataset):
+        # predict attribute
+        prediction = self.predict(celeba_dataset.source_tensor(item))
+        w.write(item+",")
+        w.write(",".join([f"{value:+1.4f}" for value in prediction]))
+        w.write("\n")
+  
+  def predict_perturbed_images(self):
+    with open(output_file, "w") as w:
+      for item in tqdm.tqdm(celeba_dataset):
+        print(item)
         # predict attribute
         prediction = self.predict(celeba_dataset.source_tensor(item))
         w.write(item+",")

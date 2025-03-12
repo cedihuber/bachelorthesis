@@ -59,6 +59,7 @@ def main():
   # create dataset
   file_lists = [os.path.join(args.protocol_directory, f"aligned_224x224_{args.which_set}_filtered_0.1.txt")]
   output_file = attribute_cam.prediction_file(args.output_directory, args.which_set, args.model_type)
+
   dataset = attribute_cam.CelebA(
       file_lists,
       args.source_directory,
@@ -72,7 +73,7 @@ def main():
   affact = attribute_cam.AFFACT(args.model_type, "cuda" if args.gpu else "cpu")
  
   startTime = datetime.now()
- 
+  print(output_file)
   affact.predict_all(dataset, output_file)
  
   print(f'The prediction finished within: {datetime.now() - startTime}')

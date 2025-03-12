@@ -9,3 +9,12 @@ tqdm>=4.64.0
 robustness>=1.2.1.post2
 tensorboard
 tabulate
+
+
+
+
+conda install -c conda-forge keras
+
+conda install -c conda-forge tensorflow 2.17.0
+
+conda install -c conda-forge scikit-image
