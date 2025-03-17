@@ -37,16 +37,7 @@ class AFFACT:
     with open(output_file, "w") as w:
       for item in tqdm.tqdm(celeba_dataset):
         # predict attribute
-        prediction = self.predict(celeba_dataset.source_tensor(item))
-        w.write(item+",")
-        w.write(",".join([f"{value:+1.4f}" for value in prediction]))
-        w.write("\n")
-  
-  def predict_perturbed_images(self):
-    with open(output_file, "w") as w:
-      for item in tqdm.tqdm(celeba_dataset):
-        print(item)
-        # predict attribute
+        #add attribute name 
         prediction = self.predict(celeba_dataset.source_tensor(item))
         w.write(item+",")
         w.write(",".join([f"{value:+1.4f}" for value in prediction]))

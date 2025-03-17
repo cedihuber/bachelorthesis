@@ -1,4 +1,4 @@
-import pytorch_grad_cam
+import pytorch_grad_cam #check this package to add methods
 import numpy
 import tqdm
 import os
@@ -7,10 +7,14 @@ import os
 # The different functions to create CAM images
 # TODO: Add more
 SUPPORTED_CAM_TYPES={
+  # add method elementwise cam 
   "grad-cam": pytorch_grad_cam.GradCAM,
   "score-cam": pytorch_grad_cam.ScoreCAM,
   "hirescam": pytorch_grad_cam.HiResCAM,
-  "fullgrad_cam": pytorch_grad_cam.FullGrad
+  "fullgrad_cam": pytorch_grad_cam.FullGrad,
+  "grad_cam_plus_plus": pytorch_grad_cam.GradCAMPlusPlus,
+  "element_wise_cam": pytorch_grad_cam.GradCAMElementWise
+  
 }
 
 

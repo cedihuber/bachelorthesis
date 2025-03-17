@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from tqdm import tqdm
 import attribute_cam
+from CelebA.perturb_protocol.list_names import list_names
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -44,7 +45,7 @@ def command_line_options():
         help="Path to folder where the output should be stored")
     parser.add_argument('-i',
                         '--image-count',
-                        default=5,
+                        default=4,
                         type=int,
                         help="if given, limit the number of images")
     parser.add_argument('-m',
@@ -80,7 +81,7 @@ def generate_masks(N, s, p1, input_size=(224, 224)):
 
     masks = np.empty((N, *input_size))
 
-    for i in tqdm(range(N), desc='Generating masks'):
+    for i in tqdm(range(N), desc='Generating masks'): #dont use for but make 
         x = np.random.randint(0, cell_size[0])
         y = np.random.randint(0, cell_size[1])
         masks[i, :, :] = resize(grid[i],
@@ -95,16 +96,16 @@ def generate_masks(N, s, p1, input_size=(224, 224)):
 
 
 # Apply masks and save perturbed images
-def perturb_and_save_images(image_path, save_dir, N=2000, s=8, p1=0.5):
-    img, x = load_img(image_path)
-    masks = generate_masks(N, s, p1)
+# def perturb_and_save_images(image_path, save_dir, N=2000, s=8, p1=0.5):
+#     img, x = load_img(image_path)
+#     masks = generate_masks(N, s, p1)
 
-    # Apply masks to image
-    perturbed_images = x * masks
+#     # Apply masks to image
+#     perturbed_images = x * masks
 
-    for i in range(N):
-        perturbed_img = perturbed_images[i].astype(np.uint8)
-        plt.imsave(f"{save_dir}/perturbed_{i}.png", perturbed_img)
+#     for i in range(N):
+#         perturbed_img = perturbed_images[i].astype(np.uint8)
+#         plt.imsave(f"{save_dir}/perturbed_{i}.png", perturbed_img)
 
 
 def apply_and_save_masks(img, x, masks, output_dir, img_name, N=2000):
@@ -145,7 +146,29 @@ def apply_and_save_masks(img, x, masks, output_dir, img_name, N=2000):
 #         perturbed_img.save(perturbed_img_path)
         
             
-def generate_saliency_map(img_name, x, masks):    
+def generate_saliency_map(img_name, perturbed_images, x, masks, N, p, attribute_idx, scores_dict):    
+
+    saliency_map = np.zeros_like(x[..., 0], dtype=np.float32)  # Initialize map
+
+    #print(f"Computing saliency map for class {class_idx}")
+  
+    #print(scores_dict)
+    # print(perturbed_images)
+    for i, perturbed_image in enumerate(perturbed_images):
+        score = scores_dict[perturbed_image][attribute_idx]
+        saliency_map += masks[i, :, :, 0] * score
+
+    saliency_map = saliency_map / N /p
+    #saliency_map /= masks.shape[0]
+    # # Normalize the saliency map
+    # if np.max(saliency_map) > np.min(saliency_map):
+    #     saliency_map = (saliency_map - np.min(saliency_map)) / (np.max(saliency_map) - np.min(saliency_map))
+    # else:
+    #     saliency_map[:] = 0  # If all values are the same, set map to zero
+    return saliency_map
+
+
+def generate_saliency_map_one_mask(img_name, x, masks):    
 
     saliency_map = np.zeros_like(x[..., 0], dtype=np.float32)  # Initialize map
 
@@ -159,10 +182,7 @@ def generate_saliency_map(img_name, x, masks):
             image_name = row[0]  # First column contains the perturbed image name
             scores = np.array(row[1:], dtype=np.float32)  # Convert scores to float
             scores_dict[image_name] = scores  # Store in dictionary
-    #print(scores_dict)
-    print(img_name)
     score = scores_dict[img_name][0]
-    print(scores_dict[img_name][0])
     for i in tqdm(range(masks.shape[0]), desc="Evaluating masked images"):
         # Accumulate weighted masks
         saliency_map += masks[i, :, :, 0] * score
@@ -172,9 +192,19 @@ def generate_saliency_map(img_name, x, masks):
     return saliency_map
 
 
-
+#
 def main():
     args = command_line_options()
+    
+    #delete all images in the folder that existed before not needed at the end
+    for filename in os.listdir("result/myresult"):
+        file_path = os.path.join("result/myresult", filename)
+
+        if os.path.isfile(file_path):
+            os.remove(file_path) 
+            print(f"Deleted file: {filename}")
+            
+    
     os.makedirs("result/myresult", exist_ok=True)
     # create dataset
 
@@ -185,39 +215,51 @@ def main():
                      f"aligned_224x224_{args.which_set}_filtered_0.1.txt")
     ]
 
-    dataset = attribute_cam.CelebA(file_lists,
+
+    CelebA_dataset = attribute_cam.CelebA(file_lists,
                                    args.source_directory,
                                    number_of_images=args.image_count)
+    
     file_list_path = os.path.join(
         args.protocol_directory,
         f"aligned_224x224_{args.which_set}_filtered_0.1.txt")
+    
     with open(file_list_path, 'r') as f:
         image_paths = [line.strip() for line in f.readlines()]
 
-    N = 2
-    s = 8
+    N = 2000 #number of masks
+    s = 8 # not sure if s should be devided in height and width
     p1 = 0.5
 
-    print(f"Perturbt {len(dataset)} images")
 
+    print(f"Perturbt {len(CelebA_dataset)} images")
+    masks = generate_masks(N, s, p1)
+    
+    # perturb images with masks and save them
     for img_name in image_paths[:args.image_count]:
         img_path = f"{args.source_directory}/{img_name}"
         print(f"Processing image: {img_path}")
         img, x = load_img(img_path)
-        masks = generate_masks(N, s, p1)
         print(f"Perturbing {img_path}")
         img_name_no_ext, _ = os.path.splitext(img_name)
         apply_and_save_masks(img, x, masks, "result/myresult", img_name_no_ext,
                              N)
 
-        #create dataset of pertubed images
+
+    #put all imagesnames inside image_names.txt
+    list_names()
+
+    #create dataset of pertubed images
     files_for_prediciton = [
         os.path.join("CelebA/perturb_protocol", f"image_names.txt")
     ]
     perturbed_images_direction = '/home/user/chuber/attribute-cam/result/myresult'
+    
+    #write own data loader this extends dimension of each image by one 4D one after one
     dataset_perturb = attribute_cam.CelebA(files_for_prediciton,
                                            perturbed_images_direction,
-                                           number_of_images=10)
+                                           number_of_images= (N+1) * args.image_count)
+    
 
     affact = attribute_cam.AFFACT(args.model_type,
                                   "cuda" if args.gpu else "cpu")
@@ -226,32 +268,62 @@ def main():
                        './result/myresult/Prediction-perturb.csv')
 
 
-
-
-
     with open("CelebA/perturb_protocol/image_names.txt", 'r') as f:
         image_paths = [line.strip() for line in f.readlines()]
+        
+    original_images = [img for img in image_paths if img.startswith("original_image")]
+    
+    
+    scores_dict = {}  # Store image names and their corresponding scores
+    with open("result/myresult/Prediction-perturb.csv", 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            image_name = row[0]  # First column contains the perturbed image name
+            scores = np.array(row[1:], dtype=np.float32)  # Convert scores to float
+            scores_dict[image_name] = scores  # Store in dictionary
+    print (scores_dict)
+    
+    # print(image_paths)
+    for img_name in original_images[:args.image_count]: #2 is wrong should be some parameter
 
-    print(image_paths)
-    for img_name in image_paths[:args.image_count]:
-        # img, x = load_img(img_path) # load original image
-        # masks = generate_masks(N, s, p1)
-
-        # # Save perturbed images
         img_name_no_ext, _ = os.path.splitext(img_name)
-        # apply_and_save_mask(img, x, masks, "result/myresult", img_name_no_ext, N)
 
+        perturbed_images = [f"perturbed_image_{img_name_no_ext.split('_')[-1]}_{i}" for i in range(1, N+1)] #1, N+1 should be some parameter 
+        
+        
         # Generate saliency map
-        class_idx = 0  # Adjust this to the desired target class index
-        saliency_map = generate_saliency_map(img_name_no_ext, x, masks)
+        for attribute_idx in range(3,5):
+            
+            saliency_map = generate_saliency_map(img_name_no_ext,perturbed_images, x, masks, N, p1, attribute_idx, scores_dict)
 
-        # Save the saliency map
-        plt.imshow(saliency_map, cmap='jet', alpha=0.7)
-        plt.axis("off")
-        plt.colorbar()
-        print(img_name_no_ext)
-        plt.savefig(f"result/myresult/saliency_map_{img_name_no_ext}.png", bbox_inches='tight')
-        plt.close()
+            img_path = f"result/myresult/{img_name}"
+            background_image, x = load_img(img_path)
+            # Save the saliency map
+            plt.imshow(background_image)
+            plt.imshow(saliency_map, cmap='jet', alpha=0.7)
+            plt.axis("off")
+            plt.colorbar()
+            plt.savefig(f"result/myresult/saliency_map_{img_name_no_ext.split('_')[-1]}_attribute{attribute_idx}.png", bbox_inches='tight')
+            plt.close()
+        
+    # for img_name in image_paths[:args.image_count]:
+    #     # img, x = load_img(img_path) # load original image
+    #     # masks = generate_masks(N, s, p1)
+
+    #     # # Save perturbed images
+    #     img_name_no_ext, _ = os.path.splitext(img_name)
+    #     # apply_and_save_mask(img, x, masks, "result
+        
+    #     saliency_map_one_mask = generate_saliency_map_one_mask(img_name_no_ext, x, masks)
+    #     print(img_name_no_ext)
+    #     # Save the saliency map
+    #     plt.imshow(saliency_map_one_mask, cmap='jet', alpha=0.7)
+    #     plt.axis("off")
+    #     plt.colorbar()
+    #     plt.savefig(f"result/myresult/saliency_map_{img_name}", bbox_inches='tight')
+    #     plt.close()
+        
+        
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
 
