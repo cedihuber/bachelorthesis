@@ -48,6 +48,7 @@ class CAM:
       for image_index in tqdm.tqdm(celeba_dataset):
         # load image
         tensor, image = celeba_dataset.source_image(image_index)
+        
  
         for attribute, index in celeba_dataset.attributes.items():
  
@@ -70,7 +71,7 @@ def average_cam(celeba_dataset, filter_function):
   for attribute in tqdm.tqdm(celeba_dataset.attributes):
     overlays = numpy.zeros(celeba_dataset.image_resolution, dtype=numpy.float64)
     activations = numpy.zeros(celeba_dataset.image_resolution[:-1], dtype=numpy.float64)
-
+  
     # compute average over all images
     counter = 0
     for image_index in celeba_dataset:
@@ -79,6 +80,9 @@ def average_cam(celeba_dataset, filter_function):
         # load images
         print(image_index,end="\n")
         activation, overlay = celeba_dataset.load_cam(attribute, image_index)
+        print(f'activation{activation.shape}')
+        print(f'overlay{overlay.shape}')
+        
         # compute average
         overlays += overlay
         activations += activation

@@ -48,7 +48,7 @@ ATTRIBUTES=[
 ]
 
 # manages all access to the dataset, original images, cam images and average CAMs
-class CelebA:
+class CelebA_perturb:
   def __init__(self, filtered_lists, source_directory, cam_directory=None, number_of_images=None, attributes=None, filter_type="none", extension=".png", image_resolution=(224,224,3)):
 
     # get default values for None parameters
@@ -64,7 +64,6 @@ class CelebA:
 
     # load image lists
     self.images = [os.path.splitext(i)[0] for filtered_list in filtered_lists for n,i in enumerate(open(filtered_list, 'r'))  if i and n < number_of_images]
-
 
   # implements the iterator interface by iterating over all images
   def __iter__(self):
@@ -113,7 +112,6 @@ class CelebA:
     filename = self.cam_filename(attribute, item)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
-    print(activation.shape)
     numpy.save(filename+".npy", activation)
 
   # loads a CAM image, either for a given item/image or an average
