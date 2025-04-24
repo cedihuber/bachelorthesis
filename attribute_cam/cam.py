@@ -61,7 +61,7 @@ class CAM:
             # NOTE: The source image for this function is float in range [0,1]
             # the ouput of it is uint8 in range [0,255]
             overlay = pytorch_grad_cam.utils.image.show_cam_on_image(image, activation, use_rgb=True)
- 
+            print(image_index, attribute)
             # save CAM activation
             celeba_dataset.save_cam(activation, overlay, attribute, image_index)
  

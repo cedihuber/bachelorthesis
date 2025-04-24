@@ -19,7 +19,7 @@ from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #
+device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -29,7 +29,7 @@ def command_line_options():
     parser.add_argument(
         '-w',
         '--which-set',
-        default="validation",
+        default="test",
         choices=("validation", "test"),
         help="Select to process the given part(s) of the dataset")
     parser.add_argument(
@@ -47,11 +47,10 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/testing",
+        default="../../../../local/scratch/chuber/result/rise_positiv_negativ",
         help="Path to folder where the output should be stored")
     parser.add_argument('-i',
                         '--image-count',
-                        default=200,
                         type=int,
                         help="if given, limit the number of images")
     parser.add_argument('-m',
@@ -74,7 +73,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=500,
+        default=100,
         type=int,
         help='Number of masks per image'
     )
@@ -173,11 +172,10 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
         
        
             
-def generate_saliency_map(perturbed_images_names, masks, N, p, attribute_idx, scores_dict, ground_truth):    
+def generate_saliency_map(perturbed_images_names, masks, N, p, attribute_idx, scores_dict):    
 
     saliency_map_positiv = torch.zeros((1, 224, 224), dtype=torch.float32, device=device)
     saliency_map_negativ = torch.zeros((1, 224, 224), dtype=torch.float32, device=device)
-    img_num = perturbed_images_names[0].split('_')[2]
     # Extract valid scores
     valid_scores = [scores_dict[name][attribute_idx] for name in perturbed_images_names if name in scores_dict]
     valid_scores = torch.tensor(valid_scores, dtype=torch.float32, device=device)  # Shape: (N,)
@@ -185,10 +183,15 @@ def generate_saliency_map(perturbed_images_names, masks, N, p, attribute_idx, sc
     # Extract corresponding masks
     valid_masks = torch.stack([masks[i] for i, name in enumerate(perturbed_images_names) if name in scores_dict])  # Shape: (N, 1, 224, 224)
 
-    truth = ground_truth[img_num][attribute_cam.dataset.ATTRIBUTES[attribute_idx]]
+    # # negative scores to 0
+    #valid_scores = torch.sigmoid(valid_scores)  # Shape: (N,)
+    #valid_scores = torch.clamp(valid_scores, min=0)
+    # Reshape scores for broadcasting
 
-    positiv = (valid_scores > 0.5) & (truth == 1.0)
-    negative = (valid_scores <=0.5) & (truth ==-1.0)
+    #print(valid_masks)
+    # alles falsch 
+    positiv = valid_scores > 0.5
+    negative = valid_scores <=0.5
     valid_scores_positiv = valid_scores[positiv] 
     valid_masks_positiv = valid_masks[positiv]
     valid_scores_negativ = valid_scores[negative]
@@ -242,26 +245,25 @@ def main():
 
     ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")
     ground_truth = attribute_cam.read_list(ground_truth_file, " ", 2)
-    
-    print(type(args.masks))
     N = args.masks
     s = 8 # not sure if s should be devided in height and width
     p1 = args.percentage #modifiy and check results
-    num_attributes = 5
+    num_attributes = 10
     count = 0
 
     print(f"Perturbt {len(CelebA_dataset)} images")
     masks = generate_masks(N, s, p1).to(device)
     #save_masks_as_images(masks,"result/myresult")
     perturbed_images = []
-    avg_saliency_maps_positiv = {i: torch.zeros((1, 224, 224), dtype=torch.float32, device=device) for i in range(num_attributes+1)}
-    avg_saliency_maps_negativ = {i: torch.zeros((1, 224, 224), dtype=torch.float32, device=device) for i in range(num_attributes+1)}
+    avg_saliency_maps_positiv = {i: torch.zeros((1, 224, 224), dtype=torch.float32, device=device) for i in range(num_attributes)}
+    avg_saliency_maps_negativ = {i: torch.zeros((1, 224, 224), dtype=torch.float32, device=device) for i in range(num_attributes)}
     avg_background = torch.zeros((3, 224, 224), dtype=torch.float32, device = device)
     # perturb images with masks and save them
     background = torch.zeros((3, 224, 224), dtype=torch.float32, device = device)
-    count_negativ = np.zeros(num_attributes+1)
-    count_positiv = np.zeros(num_attributes+1)
-    for img_name in tqdm(image_paths[:args.image_count]):
+    count_negativ = np.zeros(num_attributes)
+    count_positiv = np.zeros(num_attributes)
+    
+    for img_name in tqdm(image_paths):
         print(f"Memory allocated: {torch.cuda.memory_allocated() / 1024**2} MB")
         img_path = f"{args.source_directory}/{img_name}"
         print(f"Processing image: {img_path}")
@@ -274,7 +276,7 @@ def main():
             affact = attribute_cam.AFFACT(args.model_type,
                                   device)
         #print(perturbed_images[0].shape)
-            affact.predict_perturbed(perturbed_images,f'{args.output_directory}/Prediction-perturb2.csv')
+            affact.predict_file_logit(perturbed_images,f'{args.output_directory}/Prediction-perturb2.csv')
 
         background_image = background_image.to(device)
         background = background_image
@@ -290,10 +292,10 @@ def main():
             
         # Generate saliency map
         print("generating saliency maps")
-        for attribute_idx in range(num_attributes,num_attributes+1):
+        for attribute_idx in range(num_attributes,num_attributes):
             perturbed_images_names = [f"perturbed_image_{img_name_no_ext.split('_')[-1]}_{i}" for i in range(0, N)] #0, N should be some parameter 
         
-            saliency_map_positiv, saliency_map_negativ, positiv, negativ = generate_saliency_map(perturbed_images_names, masks, N, p1, attribute_idx, scores_dict, ground_truth)
+            saliency_map_positiv, saliency_map_negativ, positiv, negativ = generate_saliency_map(perturbed_images_names, masks, N, p1, attribute_idx, scores_dict)
             
             plt.imshow(background_image.mean(dim=0).cpu().numpy())
             plt.imshow(saliency_map_positiv.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.7)
@@ -316,8 +318,9 @@ def main():
             count_negativ[attribute_idx] += negativ
             avg_saliency_maps_positiv[attribute_idx] += saliency_map_positiv
             avg_saliency_maps_negativ[attribute_idx] += saliency_map_negativ 
-        del perturbed_images, saliency_map_positiv, saliency_map_negativ, scores_dict
-        torch.cuda.empty_cache()
+        
+        #del perturbed_images, saliency_map_positiv, saliency_map_negativ, scores_dict
+        #torch.cuda.empty_cache()
         
     avg_background /= count
     print(f'positiv{count_positiv}')
@@ -344,7 +347,6 @@ def main():
         plt.savefig(f"{args.output_directory}/saliency_map_averaged_negativ_attribute{attribute_idx}.png", bbox_inches='tight')
         plt.close()
 
-    print(attribute_cam.dataset.ATTRIBUTES[num_attributes])
     print(f'The perturbation finished within: {datetime.now() - startTime}')
 
 
