@@ -30,7 +30,7 @@ def save_saliency(colored_rgb, saliency_np, base_path):
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:0" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:1" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -287,7 +287,7 @@ def main():
             #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
             #     first = False
 
-            scores_of_images = affact.predict_logit(perturbed_images,f'{args.output_directory}/Prediction-perturb2.csv')          
+            scores_of_images = affact.predict_logit_absolute(perturbed_images,f'{args.output_directory}/Prediction-perturb2.csv')          
 
             # Generate saliency map
             for attribute_idx in range(0,num_attributes):

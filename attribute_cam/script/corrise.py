@@ -50,7 +50,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrrise2",
+        default="../../../../local/scratch/chuber/result/corrrise_10batchs_60size",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -170,7 +170,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     return perturbed_images, perturbed_filenames #list(zip(perturbed_images, perturbed_filenames))
     
         
-def pearson_correlation_batch(x, Y): 
+def pearson_correlation_batch(x, y): 
     """
     x: Tensor of shape (N,) - attribute_scores
     Y: Tensor of shape (N, M) - masks flattened across spatial dimension (M = H*W)
@@ -178,35 +178,33 @@ def pearson_correlation_batch(x, Y):
         Tensor of shape (M,) with Pearson correlation for each spatial position
     """
     x = x - x.mean()
-    Y = Y - Y.mean(dim=0)
-
+    y = y - y.mean(dim=0)
+    #print(f'x = {x.shape}, y = {y.shape}')
     x_norm = torch.norm(x)
-    Y_norm = torch.norm(Y, dim=0)
+    y_norm = torch.norm(y, dim=0)
+    #print(f'x_norm = {x_norm.shape}, {x_norm}, y_norm = {y_norm.shape}')
 
-    denom = x_norm * Y_norm
+    denom = x_norm * y_norm
     denom[denom == 0] = 1e-8  # avoid division by zero
-
-    corr = torch.matmul(x, Y) / denom  # shape: (M,)
+    #print(f'denominater{denom.shape}')
+    corr = torch.matmul(x, y) / denom  # shape: (M,)
+    #print(f'denominater{corr.shape}')
     return corr
 
 
-def pearson_correlation_multi(x, Y):
-    """
-    x: Tensor of shape (N, A) - scores for A attributes
-    Y: Tensor of shape (N, M) - flattened masks
-    Returns:
-        Tensor of shape (A, M) - saliency maps per attribute
-    """
+def pearson_correlation_multi(x, y):
+    # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
     x = x - x.mean(dim=0, keepdim=True)  # (N, A)
-    Y = Y - Y.mean(dim=0, keepdim=True)  # (N, M)
-
+    y = y - y.mean(dim=0, keepdim=True)  # (N, M)
+    nominater = torch.matmul(x.T, y)
+    print(f'x = {x.shape}, y = {y.shape}')
     x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, A)
-    Y_norm = torch.norm(Y, dim=0, keepdim=True)  # (1, M)
-
-    denom = torch.matmul(x_norm.T, Y_norm)  # (A, M)
+    y_norm = torch.norm(y, dim=0, keepdim=True)  # (1, M)
+    print(f'x_norm = {x_norm.shape}, y_norm = {y_norm.shape}')
+    denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
     denom[denom == 0] = 1e-8
 
-    corr = torch.matmul(x.T, Y) / denom  # (A, M)
+    corr = nominater / denom  # (A, M)
     return corr
 
 
@@ -224,17 +222,16 @@ def generate_saliency_map(masks, img_name, p, attribute_idx, attribute_scores, p
     #saliency_map = saliency_flat.view(1, H, W)  # reshape to (1, 224, 224)
     
     #i think this is wrong
-    saliency_flat_all = pearson_correlation_multi(scores_of_images, masks_flat) 
-    saliency_maps = saliency_flat_all.view(num_attributes, 1, H, W) 
+    saliency_flat_all = pearson_correlation_batch(attribute_scores, masks_flat) 
+    saliency_maps = saliency_flat_all.view(1, H, W) 
     
-    
-    return saliency_map
+    return saliency_maps
+
 
 def generate_all_saliency_maps(masks, attribute_scores):
-    """
-    Generate saliency maps for all attributes.
-    Returns tensor of shape (A, 1, H, W)
-    """
+    
+    #Generate saliency maps for all attributes. Returns tensor of shape (A, 1, H, W)
+
     N, _, H, W = masks.shape
     M = H * W
 
@@ -284,8 +281,8 @@ def main():
         image_paths = image_paths[::-1]
 
     N = args.masks
-    num_patches = 8 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 28 #original paper 30
+    num_patches = 10 # original paper 10, bilder sind dort aber nur 112x112
+    patch_size = 60 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
     first = True
@@ -295,7 +292,7 @@ def main():
     
     affact = attribute_cam.AFFACT(args.model_type, device)
     
-    number_of_images = 100
+    number_of_images = 1000
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths[:number_of_images]):
             f.write(f"{img_name}\n")
@@ -313,17 +310,20 @@ def main():
             img_name_no_ext, _ = os.path.splitext(img_name)
 
             perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, N)
-    #         if(first):
-            save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
-    #             first = False
+            if(first):
+                save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
+                first = False
 
             scores_of_images = affact.predict_corrrise(perturbed_images)          
     #         # Generate saliency map
-            saliency_maps = generate_all_saliency_maps(masks, scores_of_images)
+            #saliency_maps = generate_all_saliency_maps(masks, scores_of_images)
 
             for attribute_idx in range(num_attributes):
-                saliency = saliency_maps[attribute_idx].squeeze(0).cpu()
-                # saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images[:,attribute_idx], f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
+                #saliency = saliency_maps[attribute_idx]
+                saliency = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images[:,attribute_idx], f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
+                positive_saliency = torch.clamp(saliency.squeeze(0), min = 0).cpu()
+                saliency = saliency.squeeze(0).cpu()
+                
                 # print(f'saliency_map{saliency_map.shape}')
                 # plt.imshow(saliency_map.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.7)
                 # plt.axis("off")
@@ -334,13 +334,17 @@ def main():
                
                 # Normalize to [0, 1]
                 saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
+                positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
+                
+                #print(f'saliency {saliency.shape}')
+                #print(f'positivesaliency {positive_saliency.shape}')
                 
                 # NOTE: The source image for this function is float in range [0,1]
                 # the ouput of it is uint8 in range [0,255]
-                overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
+                overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, positive_saliency.numpy(), use_rgb=True)
  
                 # save CAM activation
-                celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
+                celebA_dataset.save_cam(positive_saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
                 
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
