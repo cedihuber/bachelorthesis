@@ -50,7 +50,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrrise_10batchs_60size_not_used",
+        default="../../../../local/scratch/chuber/result/corrrise_10batchs_60size_together",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -316,11 +316,11 @@ def main():
 
             scores_of_images = affact.predict_corrrise(perturbed_images)          
     #         # Generate saliency map
-            #saliency_maps = generate_all_saliency_maps(masks, scores_of_images)
+            saliency_maps = generate_all_saliency_maps(masks, scores_of_images)
 
             for attribute_idx in range(num_attributes):
-                #saliency = saliency_maps[attribute_idx]
-                saliency = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images[:,attribute_idx], f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
+                saliency = saliency_maps[attribute_idx]
+                #saliency = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images[:,attribute_idx], f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
                 positive_saliency = torch.clamp(saliency.squeeze(0), min = 0).cpu()
                 saliency = saliency.squeeze(0).cpu()
                 

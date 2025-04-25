@@ -188,3 +188,33 @@ class AFFACT:
       final_predictions = torch.cat(all_predictions, dim=0) #shape 500, 40
     
       return final_predictions
+    
+      
+  def predict_corrrise_batches(self, perturbed_images):
+    
+    images, filenames = perturbed_images
+    num_images = images.shape[1]
+    #print(f'num_images{num_images}')
+    batch_size = 2
+    res = []
+    images = images.to(self.device)
+    with torch.no_grad():
+      for image in images:
+        #print(f'image to predict {image.shape}')
+        all_predictions = []
+        for start_idx in range(0, num_images, batch_size):
+          end_idx = min(start_idx + batch_size, num_images)
+          batch_images = image[start_idx:end_idx]
+          predictions = self.predict(batch_images)
+          predictions = torch.tensor(predictions, dtype=torch.float32)  
+
+          # Apply sigmoid activation
+          #nicht in ein file schreiben aber returnen und dann direkt für die erstellung von saliency map verwenden
+          predictions = torch.sigmoid(predictions)
+          num_attributes = 40
+          grouped_predictions = predictions.view(-1, num_attributes)
+          all_predictions.append(grouped_predictions)
+      
+        final_predictions = torch.cat(all_predictions, dim=0) #shape 500, 40
+        res.append(final_predictions)
+      return res

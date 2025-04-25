@@ -58,7 +58,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/rise_logits_absolute_value",
+        default="../../../../local/scratch/chuber/result/rise_not used",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -305,6 +305,8 @@ def main():
                 
             # NOTE: The source image for this function is float in range [0,1]
             # the ouput of it is uint8 in range [0,255]
+                #print(f"original {orig_image.shape}, {orig_image.max()} { orig_image.min()} {type(orig_image)}")
+                #print(f'saliency {saliency.shape} {saliency.max()} {saliency.min()}')
                 overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
  
             # save CAM activation
