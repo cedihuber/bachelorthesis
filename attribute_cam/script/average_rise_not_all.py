@@ -28,7 +28,7 @@ def command_line_options():
   )
   parser.add_argument(
       '-o', '--output-directory',
-      default="../../../../local/scratch/chuber/result/corrrise_20batchs_60size_2",
+      default="../../../../local/scratch/chuber/result/corrrise_10batchs_60size_not_used",
       help="Path to folder where the output should be stored"
   )
   parser.add_argument(
@@ -71,7 +71,7 @@ def main():
   args = command_line_options()
 
   # get some directories
-  file_lists = [os.path.join("../../../../local/scratch/chuber/result/corrrise_20batchs_60size_2/img_names.txt")]
+  file_lists = [os.path.join("../../../../local/scratch/chuber/result/corrrise_10batchs_60size_not_used/img_names.txt")]
   cam_directory = args.output_directory
   # read ground truth and predictions
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")

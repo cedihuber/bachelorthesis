@@ -50,7 +50,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrrise_10batchs_60size_not_used",
+        default="../../../../local/scratch/chuber/result/corrrise_10batchs_50size",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -282,7 +282,7 @@ def main():
 
     N = args.masks
     num_patches = 10 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 60 #original paper 30
+    patch_size = 50 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
     first = True
@@ -292,9 +292,9 @@ def main():
     
     affact = attribute_cam.AFFACT(args.model_type, device)
     
-    number_of_images = 1000
+    number_of_images = 5
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
-        for img_name in tqdm(image_paths[:number_of_images]):
+        for img_name in tqdm(image_paths):#[:number_of_images]
             f.write(f"{img_name}\n")
 
     
@@ -303,7 +303,7 @@ def main():
 
     # perturb images with masks and save them
     with torch.no_grad():
-        for img_name in tqdm(image_paths[:number_of_images]):
+        for img_name in tqdm(image_paths):#[:number_of_images]
             img_path = f"{args.source_directory}/{img_name}"
     #         print(f"Processing image: {img_path}")
             image, orig_image = load_img(img_path)
@@ -314,10 +314,10 @@ def main():
                 save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
                 first = False
 
-            scores_of_images = affact.predict_corrrise(perturbed_images)          
+            scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
     #         # Generate saliency map
             #saliency_maps = generate_all_saliency_maps(masks, scores_of_images)
-
+            
             for attribute_idx in range(num_attributes):
                 #saliency = saliency_maps[attribute_idx]
                 saliency = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images[:,attribute_idx], f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
