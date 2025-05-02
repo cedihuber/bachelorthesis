@@ -167,7 +167,7 @@ class AFFACT:
     
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 10
+    batch_size = 40
     all_predictions = []
     
     images = images.to(self.device)

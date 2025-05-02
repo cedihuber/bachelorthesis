@@ -20,10 +20,12 @@ import shutil
 import random
 import pytorch_grad_cam
 from concurrent.futures import ThreadPoolExecutor
+import cProfile
+import pstats
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -51,7 +53,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrrise_10batchs_50size_attributes_together",
+        default="../../../../local/scratch/chuber/result/corrrise_20batchs_30size_1000masks_attributes_together_all_images",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -78,7 +80,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=500,
+        default=1000,
         type=int,
         help='Number of masks per image'
     )
@@ -108,7 +110,7 @@ def load_img(path, input_size=(224, 224)):
 # Generate masks
 def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
     
-    masks = torch.zeros((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
+    masks = torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
 
     for i in range(N):
         for _ in range(num_patches):
@@ -116,7 +118,7 @@ def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
             x = random.randint(0, image_size[0] - patch_size)
             y = random.randint(0, image_size[1] - patch_size)
 
-            # Random values in [0, 1] for the patch
+            # Random values in [0, 1] for the patch nur 1 oder 0 nicht zwischen 1 und 0
             patch = torch.rand((patch_size, patch_size), device=device)
 
             # Add the patch into the mask
@@ -162,7 +164,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     image_expanded = image.unsqueeze(0).expand(masks.shape[0], -1, -1, -1)  # Shape: (N, 3, H, W)
 
     # Apply masks using batch-wise multiplication
-    # Masks shape: (N, 1, H, W) -> Expand to (N, 3, H, W) to match image
+    # Masks shape: (N, 1, H, W) -> Expand to (N, 3, H, W) to match image # die werte nicht multiplizieren aber ersetzten, 
     perturbed_images = image_expanded * masks.expand(-1, 3, -1, -1)
 
     # Generate filenames
@@ -216,10 +218,10 @@ def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, 
     saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
     positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
 
-    # Generate CAM overlay
+    # Generate RISE overlay
     overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, positive_saliency.numpy(), use_rgb=True)
 
-    # Save CAM activation
+    # Save RISE activation
     celebA_dataset.save_cam(positive_saliency, overlay, attribute_name, img_name_no_ext)
 
 def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset):
@@ -272,7 +274,7 @@ def main():
 
     N = args.masks
     num_patches = 10 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 50 #original paper 30
+    patch_size = 30 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
     first = True
@@ -282,7 +284,7 @@ def main():
     
     affact = attribute_cam.AFFACT(args.model_type, device)
     
-    number_of_images = 5
+    number_of_images = 1000
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths):#[:number_of_images]
             f.write(f"{img_name}\n")
@@ -317,3 +319,22 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # # Profile your main function or any function
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+
+    # main()  # Replace with your main function or the function you want to profile
+
+    # profiler.disable()
+
+    # # Save the profile output to a file
+    # profiler.dump_stats('profile_output.prof')
+
+    # # Read the profile output from the file
+    # stats = pstats.Stats('profile_output.prof')
+
+    # # Sort by cumulative time ('cumtime') to identify the slowest parts
+    # stats.sort_stats('cumtime')
+
+    # # Print the top 20 slowest functions
+    # stats.print_stats(20)

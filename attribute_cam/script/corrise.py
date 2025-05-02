@@ -107,7 +107,7 @@ def load_img(path, input_size=(224, 224)):
 # Generate masks
 def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
     
-    masks = torch.zeros((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
+    masks = torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
 
     for i in range(N):
         for _ in range(num_patches):
@@ -171,12 +171,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     
         
 def pearson_correlation_batch(x, y): 
-    """
-    x: Tensor of shape (N,) - attribute_scores
-    Y: Tensor of shape (N, M) - masks flattened across spatial dimension (M = H*W)
-    Returns:
-        Tensor of shape (M,) with Pearson correlation for each spatial position
-    """
+
     x = x - x.mean()
     y = y - y.mean(dim=0)
     #print(f'x = {x.shape}, y = {y.shape}')
@@ -192,20 +187,20 @@ def pearson_correlation_batch(x, y):
     return corr
 
 
-def pearson_correlation_multi(x, y):
-    # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
-    x = x - x.mean(dim=0, keepdim=True)  # (N, A)
-    y = y - y.mean(dim=0, keepdim=True)  # (N, M)
-    nominater = torch.matmul(x.T, y)
-    print(f'x = {x.shape}, y = {y.shape}')
-    x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, A)
-    y_norm = torch.norm(y, dim=0, keepdim=True)  # (1, M)
-    print(f'x_norm = {x_norm.shape}, y_norm = {y_norm.shape}')
-    denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
-    denom[denom == 0] = 1e-8
+# def pearson_correlation_multi(x, y):
+#     # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
+#     x = x - x.mean(dim=0, keepdim=True)  # (N, A)
+#     y = y - y.mean(dim=0, keepdim=True)  # (N, M)
+#     nominater = torch.matmul(x.T, y)
+#     print(f'x = {x.shape}, y = {y.shape}')
+#     x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, A)
+#     y_norm = torch.norm(y, dim=0, keepdim=True)  # (1, M)
+#     print(f'x_norm = {x_norm.shape}, y_norm = {y_norm.shape}')
+#     denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
+#     denom[denom == 0] = 1e-8
 
-    corr = nominater / denom  # (A, M)
-    return corr
+#     corr = nominater / denom  # (A, M)
+#     return corr
 
 
 def generate_saliency_map(masks, img_name, p, attribute_idx, attribute_scores, path):    
@@ -228,20 +223,20 @@ def generate_saliency_map(masks, img_name, p, attribute_idx, attribute_scores, p
     return saliency_maps
 
 
-def generate_all_saliency_maps(masks, attribute_scores):
+# def generate_all_saliency_maps(masks, attribute_scores):
     
-    #Generate saliency maps for all attributes. Returns tensor of shape (A, 1, H, W)
+#     #Generate saliency maps for all attributes. Returns tensor of shape (A, 1, H, W)
 
-    N, _, H, W = masks.shape
-    M = H * W
+#     N, _, H, W = masks.shape
+#     M = H * W
 
-    masks_flat = masks.view(N, -1)  # shape: (N, H*W)
-    attribute_scores = attribute_scores.to(device)
-    masks_flat = masks_flat.to(device)
+#     masks_flat = masks.view(N, -1)  # shape: (N, H*W)
+#     attribute_scores = attribute_scores.to(device)
+#     masks_flat = masks_flat.to(device)
 
-    saliency_flat_all = pearson_correlation_multi(attribute_scores, masks_flat)  # (A, H*W)
-    saliency_maps = saliency_flat_all.view(attribute_scores.shape[1], 1, H, W)  # (A, 1, H, W)
-    return saliency_maps
+#     saliency_flat_all = pearson_correlation_multi(attribute_scores, masks_flat)  # (A, H*W)
+#     saliency_maps = saliency_flat_all.view(attribute_scores.shape[1], 1, H, W)  # (A, 1, H, W)
+#     return saliency_maps
 
 
 

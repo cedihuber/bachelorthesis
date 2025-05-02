@@ -99,7 +99,7 @@ def command_line_options():
 # Generate masks
 def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
     
-    masks = torch.zeros((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
+    masks = torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
 
     for i in range(N):
         for _ in range(num_patches):
