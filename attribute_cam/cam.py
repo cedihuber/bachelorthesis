@@ -2,6 +2,7 @@ import pytorch_grad_cam #check this package to add methods
 import numpy
 import tqdm
 import os
+import torch
 
 
 # The different functions to create CAM images
@@ -77,20 +78,96 @@ def average_cam(celeba_dataset, filter_function):
     for image_index in celeba_dataset:
       # apply filter function to get only the images that we want
       if filter_function(image_index,attribute):
+        print("why does this work")
         # load images
         print(image_index,end="\n")
         activation, overlay = celeba_dataset.load_cam(attribute, image_index)
-        print(f'activation{activation.shape}')
-        print(f'overlay{overlay.shape}')
+        print(f'activation{activation.max()}')
+        print(f'overlay{overlay.max()}')
         
         # compute average
         overlays += overlay
         activations += activation
         counter += 1
 
+    #activations = (activations - activations.min())/ (activations.max()-activations.min())*255
+    #overlays = (overlays - overlays.min())/ (overlays.max()-overlays.min())*255
+    print(activations.max())
     # save averages
     celeba_dataset.save_cam(
       activations/counter,
       overlays/counter,
       attribute
     )
+
+def average_cam1(celeba_dataset, filter_function):
+  for attribute in tqdm.tqdm(celeba_dataset.attributes):
+    overlays = numpy.zeros(celeba_dataset.image_resolution, dtype=numpy.float64)
+    activations = numpy.zeros(celeba_dataset.image_resolution[:-1], dtype=numpy.float64)
+  
+    # compute average over all images
+    counter = 0
+    for image_index in celeba_dataset:
+      # apply filter function to get only the images that we want
+      if filter_function(image_index,attribute):
+        print("why does this work")
+        # load images
+        print(image_index,end="\n")
+        activation, overlay = celeba_dataset.load_cam(attribute, image_index)
+        print(f'activation{activation.max()}')
+        print(f'overlay{overlay.max()}')
+        
+        # compute average
+        overlays += overlay
+        activations += activation
+        counter += 1
+
+    #activations = (activations - activations.min())/ (activations.max()-activations.min())*255
+    #overlays = (overlays - overlays.min())/ (overlays.max()-overlays.min())*255
+    print(activations.max())
+    # save averages
+    celeba_dataset.save_cam(
+      activations/counter,
+      overlays/counter,
+      attribute
+    )
+
+
+# Averages CAM images over the whole dataset, filtered by the given filter function
+def average_perturb(celeba_dataset, filter_function):
+  for attribute in tqdm.tqdm(celeba_dataset.attributes):
+    overlays = torch.zeros([3,224,224])
+    activations = numpy.zeros((224,224), dtype=numpy.float64)
+  
+    # compute average over all images
+    counter = 0
+    for image_index in celeba_dataset:
+      # apply filter function to get only the images that we want
+      if filter_function(image_index,attribute):
+        # load images
+        print(image_index,end="\n")
+        activation, overlay = celeba_dataset.load_perturb(attribute, image_index)
+        # print(f'activation{activation.max()}')
+        # print(f'overlay{overlay.max()}')
+        
+        # compute average
+        overlays += overlay
+        activations += activation
+        counter += 1
+
+    #activations = (activations - activations.min())/ (activations.max()-activations.min())*255
+    #overlays = (overlays - overlays.min())/ (overlays.max()-overlays.min())*255
+    print(activations.max())
+    
+    celeba_dataset.save_avg_perturb(
+      activations/counter,
+      overlays.numpy().transpose(1,2,0)/counter,
+      attribute
+    )
+    
+    # # save averages
+    # celeba_dataset.save_perturb(
+    #   activations/counter,
+    #   overlays/counter,
+    #   attribute
+    # )

@@ -112,9 +112,13 @@ class CelebA:
   def save_cam(self, activation, overlay, attribute, item=None):
     filename = self.cam_filename(attribute, item)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    print(filename)
+    print(f'overlay max {overlay.max()}, activation max {activation.max()}')
     torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
     #print(activation.shape)
     numpy.save(filename+".npy", activation)
+  
+  
 
   # loads a CAM image, either for a given item/image or an average
   def load_cam(self, attribute, item=None):

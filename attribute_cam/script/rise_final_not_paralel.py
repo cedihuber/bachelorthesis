@@ -20,6 +20,20 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 import pytorch_grad_cam
 
+import torch
+import cv2
+import pandas as pd
+import numpy as np
+import math
+import random
+from PIL import Image
+import torchvision
+import scipy
+import os
+from torch.nn import DataParallel
+from tqdm import tqdm
+import pdb
+
 
 
 def save_saliency(colored_rgb, saliency_np, base_path):
@@ -30,7 +44,7 @@ def save_saliency(colored_rgb, saliency_np, base_path):
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:1" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:0" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -58,7 +72,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/rise_not used",
+        default="../../../../local/scratch/chuber/result/new_rise_implementation_500masks_balanced_logits_new_saving",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -236,7 +250,7 @@ def main():
     ]
 
 
-    celebA_dataset = attribute_cam.CelebA(file_lists,
+    celebA_dataset = attribute_cam.CelebA_perturb(file_lists,
                                    args.source_directory,
                                    number_of_images=args.image_count, 
                                    cam_directory = os.path.join(args.output_directory))
@@ -261,12 +275,19 @@ def main():
     
     affact = attribute_cam.AFFACT(args.model_type, device)
 
-    
+
+    # os.environ["CUDA_VISIBLE_DEVICES"]  = "0,4"
+    # gpus = [0,1]
+    # #affact.cuda()
+    # affact =  DataParallel(affact, device_ids = gpus)
+
+
+    # affact.eval()
     for attribute_idx in range(0,num_attributes):        
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
 
-    number_of_images = 100
+    number_of_images = 20
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths): #[:number_of_images]
             f.write(f"{img_name}\n")
@@ -286,9 +307,11 @@ def main():
             #     print(perturbed_images[0].shape)
             #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
             #     first = False
-
-            scores_of_images = affact.predict_logit_absolute(perturbed_images,f'{args.output_directory}/Prediction-perturb2.csv')          
-
+            scores_of_images = affact.predict_logit(perturbed_images)
+            # scores_of_images_1 = affact.predict_logit(perturbed_images[:250])
+            # scores_of_images_2 = affact.predict_logit(perturbed_images[250:])   
+            # scores_of_images = torch.concat([scores_of_images_1,scores_of_images_2])
+            
             # Generate saliency map
             for attribute_idx in range(0,num_attributes):
             
@@ -307,10 +330,12 @@ def main():
             # the ouput of it is uint8 in range [0,255]
                 #print(f"original {orig_image.shape}, {orig_image.max()} { orig_image.min()} {type(orig_image)}")
                 #print(f'saliency {saliency.shape} {saliency.max()} {saliency.min()}')
-                overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
- 
-            # save CAM activation
-                celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
+                
+                celebA_dataset.save_perturb(saliency,orig_image,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png')
+                #overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
+                #celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
+            
+            
             
                 # # Convert to numpy and apply colormap
                 # saliency_np = saliency.numpy()

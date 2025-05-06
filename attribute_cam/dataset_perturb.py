@@ -4,6 +4,32 @@ import torchvision
 import torch
 import numpy
 
+
+import numpy as np
+from matplotlib import pyplot as plt
+from keras.preprocessing import image
+from keras.applications.resnet50 import ResNet50, preprocess_input, decode_predictions
+from keras import backend as K
+from skimage.transform import resize
+import torch
+import torch.nn.functional as F
+from PIL import Image
+import shutil
+import random
+import pytorch_grad_cam
+from concurrent.futures import ThreadPoolExecutor
+import cProfile
+import pstats
+
+import pandas as pd
+from tqdm import tqdm
+import os
+import numpy as np
+import torchvision
+import cv2
+import torch
+from PIL import Image
+
 ATTRIBUTES=[
   '5_o_Clock_Shadow',
   'Arched_Eyebrows',
@@ -111,8 +137,35 @@ class CelebA_perturb:
   def save_cam(self, activation, overlay, attribute, item=None):
     filename = self.cam_filename(attribute, item)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    #print(filename)
+    print("this should not be printed")
     torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
     numpy.save(filename+".npy", activation)
+
+  def save_perturb(self, saliency_map,orig_image, filename):
+    np.save(f'{filename}.npy', saliency_map)
+    heatmap = cv2.applyColorMap(np.uint8(255 * saliency_map), cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    heatmap = np.float32(heatmap) / 255.
+    cam = (1 - 0.5) * heatmap + 0.5 * orig_image
+    cam = cam / np.max(cam)
+    overlay = np.uint8(255 * cam)
+    # print(f'{args.output_directory}/{attribute_name}/{img_name_no_ext}.png')
+    torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
+    # print(f'overlay1 {overlay1.shape}, max {overlay1.max()}, min {overlay1.min()}')
+
+
+  def save_avg_perturb(self, activation, overlay, filename):
+    np.save(f'{filename}.npy', activation)
+    activation = (activation - activation.min()) / (activation.max() - activation.min())
+    heatmap = cv2.applyColorMap(np.uint8(255 * activation), cv2.COLORMAP_JET)
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    heatmap = np.float32(heatmap) / 255.
+    cam = (1 - 0.5) * heatmap + 0.5 * overlay
+    cam = cam / np.max(cam)
+    result = np.uint8(255 * cam)
+    torchvision.io.write_png(torch.tensor(result.transpose(2,0,1), dtype=torch.uint8), filename)
+
 
   # loads a CAM image, either for a given item/image or an average
   def load_cam(self, attribute, item=None):
@@ -122,6 +175,14 @@ class CelebA_perturb:
     activation = numpy.load(filename + ".npy")
     return activation, overlay
 
+  def load_perturb(self, attribute, item=None):
+    print(attribute,item,end = "fdf\n")
+    filename = self.cam_filename(attribute, item)
+    tf = torchvision.transforms.ToTensor()
+    overlay = Image.open(filename)
+    overlay = tf(overlay)
+    activation = numpy.load(filename + ".npy")
+    return activation, overlay
 
 # create several dataset objects with reduced number of samples, split across all dataset instances
 def split_dataset(number_of_splits, *args, **kwargs):

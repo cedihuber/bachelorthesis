@@ -83,11 +83,11 @@ class AFFACT:
       return final_predictions
   
     
-  def predict_logit(self, perturbed_images, output_file):
+  def predict_logit(self, perturbed_images):
     
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 1
+    batch_size = 20
     all_predictions = []
     
     #images = images.to(self.device)
