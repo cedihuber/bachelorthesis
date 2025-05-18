@@ -112,11 +112,11 @@ class AFFACT:
     
     
     
-  def predict_logit_absolute(self, perturbed_images, output_file):
+  def predict_logit_absolute(self, perturbed_images):
   
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 2
+    batch_size = 20
     all_predictions = []
    #images = images.to(self.device)
     with torch.no_grad():
@@ -129,6 +129,32 @@ class AFFACT:
         predictions = self.predict(batch_images)
         predictions = torch.tensor(predictions, dtype=torch.float32)
         predictions = torch.abs(predictions)
+       # Apply sigmoid activation
+        #nicht in ein file schreiben aber returnen und dann direkt für die erstellung von saliency map verwenden
+        num_attributes = 40
+        grouped_predictions = predictions.view(-1, num_attributes)
+        all_predictions.append(grouped_predictions)
+      
+      final_predictions = torch.cat(all_predictions, dim=0)
+      return final_predictions 
+    
+    
+  def predict_sigmoid(self, perturbed_images):
+    images, filenames = perturbed_images
+    num_images = images.shape[0]
+    batch_size = 20
+    all_predictions = []
+   #images = images.to(self.device)
+    with torch.no_grad():
+      for start_idx in range(0, num_images, batch_size):
+        end_idx = min(start_idx + batch_size, num_images)
+        batch_images = images[start_idx:end_idx] #shape (batch_size, 3, 224, 224)
+        #print(batch_images.shape)
+        #print(f'min{batch_images.min()}')
+        #print(f'max{batch_images.max()}')
+        predictions = self.predict(batch_images)
+        predictions = torch.tensor(predictions, dtype=torch.float32)
+        predictions = torch.sigmoid(predictions)
        # Apply sigmoid activation
         #nicht in ein file schreiben aber returnen und dann direkt für die erstellung von saliency map verwenden
         num_attributes = 40
@@ -167,9 +193,9 @@ class AFFACT:
     
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 40
+    batch_size = 1
     all_predictions = []
-    
+    #print(images.shape)
     images = images.to(self.device)
     with torch.no_grad():
       for start_idx in range(0, num_images, batch_size):
@@ -179,8 +205,7 @@ class AFFACT:
         predictions = torch.tensor(predictions, dtype=torch.float32)  
 
         # Apply sigmoid activation
-        #nicht in ein file schreiben aber returnen und dann direkt für die erstellung von saliency map verwenden
-        predictions = torch.sigmoid(predictions)
+        # predictions = torch.sigmoid(predictions)
         num_attributes = 40
         grouped_predictions = predictions.view(-1, num_attributes)
         all_predictions.append(grouped_predictions)

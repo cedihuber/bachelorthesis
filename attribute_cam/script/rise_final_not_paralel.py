@@ -72,7 +72,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/new_rise_implementation_500masks_balanced_logits_new_saving",
+        default="../../../../local/scratch/chuber/result/new_rise_implementation_500masks_balanced_logits_absolute_new_saving",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -234,7 +234,8 @@ def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,pat
 
 
 def main():
-    executor = ThreadPoolExecutor(max_workers=8)  # Adjust depending on your CPU
+    #executor = ThreadPoolExecutor(max_workers=8)  # Adjust depending on your CPU
+    
     args = command_line_options()
     
     if os.path.exists(args.output_directory):
@@ -307,7 +308,13 @@ def main():
             #     print(perturbed_images[0].shape)
             #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
             #     first = False
-            scores_of_images = affact.predict_logit(perturbed_images)
+            
+            #different scores for the perturbed images
+            #scores_of_images = affact.predict_logit(perturbed_images)
+            scores_of_images = affact.predict_logit_absolute(perturbed_images)
+            #scores_of_images = affact.predict_sigmoid(perturbed_images)
+            
+            
             # scores_of_images_1 = affact.predict_logit(perturbed_images[:250])
             # scores_of_images_2 = affact.predict_logit(perturbed_images[250:])   
             # scores_of_images = torch.concat([scores_of_images_1,scores_of_images_2])
@@ -335,36 +342,8 @@ def main():
                 #overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
                 #celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
             
-            
-            
-                # # Convert to numpy and apply colormap
-                # saliency_np = saliency.numpy()
-                # colormap = plt.get_cmap("jet")
-                # colored_map = colormap(saliency_np)  # shape: (224, 224,4)
-                # print(colored_map.shape)
-                # # Drop alpha channel and convert to uint8 RGB
-                # colored_rgb = (colored_map[:, :, :3] * 255).astype(np.uint8) #shape 224,224,3
-                # print(colored_rgb.shape)
-                # # Inside your per-image/attribute loop:
-                # base_path = f"{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}"
-                # #saliency_np = saliency_map.squeeze(0).cpu().numpy()  # shape: (224, 224)
 
-                # executor.submit(save_saliency, colored_rgb, saliency_np, base_path)
-                
-                # # Save as image
-                # save_path = f"{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png"
-                # Image.fromarray(colored_rgb).save(save_path)
-                
-                # saliency_np = saliency_map.squeeze(0).cpu().numpy()  # shape: (H, W)
-                # np.save(f"{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png.npy", saliency_np)
-                
-                # plt.imshow(saliency_map.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.9)
-                # plt.axis("off")
-                # plt.tight_layout()
-                # plt.savefig(f"{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/saliency_map_old_way{img_name_no_ext}.png", bbox_inches='tight')
-                # plt.close()
-
-            del perturbed_images, saliency_map
+            del image, orig_image, perturbed_images, saliency_map, saliency, scores_of_images
             torch.cuda.empty_cache()
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')

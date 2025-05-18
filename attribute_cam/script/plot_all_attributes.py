@@ -49,10 +49,10 @@ Attrs=[
 
 def plot(filter_key):
     attrs = Attrs
-    images = [mpimg.imread(f"../../../../local/scratch/chuber/result/new_rise_implementation_500masks_balanced_logits/{filter_key}/" + attr+".png") for attr in attrs]
+    images = [mpimg.imread(f"../../../../local/scratch/chuber/result/corrRise_masks_black_1batchs_30size_2000masks/{filter_key}/" + attr+".png") for attr in attrs]
    
  
-    with PdfPages(f'../../../../local/scratch/chuber/result/new_rise_implementation_500masks_balanced_logits/a_{filter_key}.pdf') as pdf:
+    with PdfPages(f'../../../../local/scratch/chuber/result/corrRise_masks_black_1batchs_30size_2000masks/a_{filter_key}.pdf') as pdf:
         fig, axes = plt.subplots(5, 8, figsize=(24, 15))  
         for i, ax in enumerate(axes.flat):
             if i < len(images):

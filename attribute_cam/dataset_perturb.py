@@ -138,11 +138,14 @@ class CelebA_perturb:
     filename = self.cam_filename(attribute, item)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     #print(filename)
-    print("this should not be printed")
+    #print("this should not be printed")
+    #print(f'overlay average max{overlay.max()}, min {overlay.min()}') #max 228, min 34
+    #print(f'activation average max{activation.max()}, min {activation.min()}') #max 0.93, min 0
     torchvision.io.write_png(torch.tensor(overlay.transpose(2,0,1), dtype=torch.uint8), filename)
     numpy.save(filename+".npy", activation)
 
   def save_perturb(self, saliency_map,orig_image, filename):
+    #os.makedirs(os.path.dirname(filename), exist_ok=True)
     np.save(f'{filename}.npy', saliency_map)
     heatmap = cv2.applyColorMap(np.uint8(255 * saliency_map), cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
@@ -155,28 +158,35 @@ class CelebA_perturb:
     # print(f'overlay1 {overlay1.shape}, max {overlay1.max()}, min {overlay1.min()}')
 
 
-  def save_avg_perturb(self, activation, overlay, filename):
+  def save_avg_perturb(self, activation, overlay, attribute):
+    filename = self.cam_filename(attribute,None)
+    #print(filename)
+    #print(f'activation average max{activation.max()}, min {activation.min()}') #max = 0.88, min = 0.0 corrRise results
+    #print(f'overlay before average max{overlay.max()}, min {overlay.min()}') #max = 0.84 min = 0.1 corrRise results
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     np.save(f'{filename}.npy', activation)
-    activation = (activation - activation.min()) / (activation.max() - activation.min())
-    heatmap = cv2.applyColorMap(np.uint8(255 * activation), cv2.COLORMAP_JET)
-    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-    heatmap = np.float32(heatmap) / 255.
-    cam = (1 - 0.5) * heatmap + 0.5 * overlay
-    cam = cam / np.max(cam)
+    #activation = (activation - activation.min()) / (activation.max() - activation.min())
+    #heatmap = cv2.applyColorMap(np.uint8(255 * activation), cv2.COLORMAP_JET)
+    #heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    #heatmap = np.float32(heatmap) / 255.
+    #cam = (1 - 0.5) * heatmap + 0.5 * overlay
+    cam = overlay / np.max(overlay)
     result = np.uint8(255 * cam)
+    
+    #print(f'overlay average max{result.max()}, min {result.min()}') #max = 255 min = 13 corrRise results
     torchvision.io.write_png(torch.tensor(result.transpose(2,0,1), dtype=torch.uint8), filename)
 
 
   # loads a CAM image, either for a given item/image or an average
   def load_cam(self, attribute, item=None):
-    print(attribute,item,end = "fdf\n")
+    print(attribute,item,end = "\n")
     filename = self.cam_filename(attribute, item)
     overlay = torchvision.io.image.read_image(filename).numpy().transpose(1,2,0)
     activation = numpy.load(filename + ".npy")
     return activation, overlay
 
   def load_perturb(self, attribute, item=None):
-    print(attribute,item,end = "fdf\n")
+    # print(attribute,item,end = "fdf\n")
     filename = self.cam_filename(attribute, item)
     tf = torchvision.transforms.ToTensor()
     overlay = Image.open(filename)

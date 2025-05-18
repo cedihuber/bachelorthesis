@@ -34,7 +34,7 @@ from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -62,7 +62,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrRise_masks_black_white_10batchs_30size_500masks",
+        default="../../../../local/scratch/chuber/result/testing",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -89,7 +89,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=1000,
+        default=2000,
         type=int,
         help='Number of masks per image'
     )
@@ -297,7 +297,7 @@ def main():
         image_paths = image_paths[::-1]
 
     N = args.masks
-    num_patches = 10 # original paper 10, bilder sind dort aber nur 112x112
+    num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
     patch_size = 30 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
@@ -332,7 +332,7 @@ def main():
             if(first):
                 save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
                 first = False
-
+            
             scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
     #         # Generate saliency map
             saliency_maps = generate_all_saliency_maps(masks_activation, scores_of_images) #shape (40,1,224,224)

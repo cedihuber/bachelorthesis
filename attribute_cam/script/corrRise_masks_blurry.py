@@ -38,7 +38,7 @@ import cv2
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -66,7 +66,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrRise_masks_blurry_10batchs_30size_500masks_1000images",
+        default="../../../../local/scratch/chuber/corrRiseResult/balanced/corrRise_masks_blurry_1batchs_30size_2000masks",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -93,7 +93,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=1000,
+        default=2000,
         type=int,
         help='Number of masks per image'
     )
@@ -299,7 +299,7 @@ def main():
         image_paths = image_paths[::-1]
 
     N = args.masks
-    num_patches = 10 # original paper 10, bilder sind dort aber nur 112x112
+    num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
     patch_size = 30 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
@@ -313,7 +313,7 @@ def main():
     
     number_of_images = 1000
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
-        for img_name in tqdm(image_paths[:number_of_images]):#[:number_of_images]
+        for img_name in tqdm(image_paths):#[:number_of_images]
             f.write(f"{img_name}\n")
 
     
@@ -322,7 +322,7 @@ def main():
 
     # perturb images with masks and save them
     with torch.no_grad():
-        for img_name in tqdm(image_paths[:number_of_images]):#[:number_of_images]
+        for img_name in tqdm(image_paths):#[:number_of_images]
             img_path = f"{args.source_directory}/{img_name}"
     #         print(f"Processing image: {img_path}")
             image, orig_image = load_img(img_path)
@@ -336,7 +336,7 @@ def main():
             scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
     #         # Generate saliency map
             saliency_maps = generate_all_saliency_maps(masks, scores_of_images) #shape (40,1,224,224)
-            print(saliency_maps.shape)
+            #print(saliency_maps.shape)
             
             #much faster in saving saliency maps for all attributes
             process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)
