@@ -17,26 +17,24 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 import shutil
-from concurrent.futures import ThreadPoolExecutor
-import pytorch_grad_cam
-
-import torch
-import cv2
-import pandas as pd
-import numpy as np
-import math
 import random
-from PIL import Image
-import torchvision
-import scipy
-import os
-from torch.nn import DataParallel
+import pytorch_grad_cam
+from concurrent.futures import ThreadPoolExecutor
+import cProfile
+import pstats
+
+import pandas as pd
 from tqdm import tqdm
-import pdb
+import os
+import numpy as np
+import torchvision
+import cv2
+import torch
+from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:7" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -64,7 +62,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/riseResult/balanced/rise_logits_4000_masks_p_0_75",
+        default="../../../../local/scratch/chuber/corrRiseResultAdapted/balanced/corrRise_masks_black_2000_masks_50_patch",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -84,14 +82,14 @@ def command_line_options():
     parser.add_argument(
         '-percentage',
         '--percentage',
-        default=0.75, # 0.25 not so good results
+        default=0.5, # 0.25 not so good results
         type=float,
         help='How big is the part of a mask'
     )
     parser.add_argument(
         '-masks',
         '--masks',
-        default=4000,
+        default=2000,
         type=int,
         help='Number of masks per image'
     )
@@ -119,28 +117,22 @@ def load_img(path, input_size=(224, 224)):
 
 
 # Generate masks
-def generate_masks(N, s, p1, input_size=(224, 224)):
-    cell_size = torch.ceil(torch.tensor(input_size, dtype=torch.float32, device = device) / s) 
-    up_size = (s + 1) * cell_size  # Scaling factor for upsampling
-
-    # Generate random binary grid masks (N, s, s) with probability p1
-    grid = (torch.rand(N, s, s, device=device) < p1).float()
-
-    # Random crop offsets
-    x_offsets = torch.randint(0, int(cell_size[0]), (N,), device=device)
-    y_offsets = torch.randint(0, int(cell_size[1]), (N,), device=device)
-
-    # Upsample grid to match the input size
-    grid = grid.unsqueeze(1)  # Shape: (N, 1, s, s)
-    grid_upsampled = F.interpolate(grid, size=tuple(map(int, up_size)), mode="bilinear", align_corners=False)
-
-    # Crop each mask based on offsets
-    masks = torch.stack([
-        grid_upsampled[i, :, x:x + input_size[0], y:y + input_size[1]]
-        for i, (x, y) in enumerate(zip(x_offsets, y_offsets))
-    ])
+def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
+    
+    masks =  torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
 
 
+    for i in range(N):
+        for _ in range(num_patches):
+            # Random patch position
+            x = random.randint(0, image_size[0] - patch_size)
+            y = random.randint(0, image_size[1] - patch_size)
+
+            # Random values in [0, 1] for the patch nur 1 oder 0 nicht zwischen 1 und 0
+            patch = torch.zeros((patch_size, patch_size), dtype=torch.float32, device=device)
+            # Add the patch into the mask
+            masks[i, 0, y:y+patch_size, x:x+patch_size] = patch
+            
     return masks
 
 
@@ -181,54 +173,62 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     image_expanded = image.unsqueeze(0).expand(masks.shape[0], -1, -1, -1)  # Shape: (N, 3, H, W)
 
     # Apply masks using batch-wise multiplication
-    # Masks shape: (N, 1, H, W) -> Expand to (N, 3, H, W) to match image
-    perturbed_images = image_expanded * masks.expand(-1, 3, -1, -1)
-
+    # Masks shape: (N, 1, H, W) -> Expand to (N, 3, H, W) to match image # die werte nicht multiplizieren aber ersetzten, 
+    #perturbed_images = image_expanded * masks.expand(-1, 3, -1, -1)
+       # Start with original image
+    masks_expanded = masks.expand(-1, 3, -1, -1)
+    perturbed = image_expanded * masks_expanded
+    
     # Generate filenames
     perturbed_filenames = [f'perturbed_image_{img_name}_{i}' for i in range(masks.shape[0])]
 
-    return perturbed_images, perturbed_filenames #list(zip(perturbed_images, perturbed_filenames))
+    return perturbed, perturbed_filenames #list(zip(perturbed_images, perturbed_filenames))
     
-        
-       
-            
-def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,path):    
+
+
+def pearson_correlation_multi(x, y, original_score): # x shape (500,40) y shape (500,50176)
+    # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
+
+    x = x - original_score # (N, A) hier wird im gegensatz zu original pearson correlation der original score abgezogen um zu sehen ob durch das abdecken score höher oder tiefer wird
+    y = y - y.mean(dim=0, keepdim=True)  # (N, M)
+    nominater = torch.matmul(x.T, y)
+    #print(f'x = {x.shape}, y = {y.shape}')
+    x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, 40)
+    y_norm = torch.norm(y, dim=0, keepdim=True)  # (1, 50176)
+    #print(f'x_norm = {x_norm.shape}, y_norm = {y_norm.shape}')
+    denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
+    denom[denom == 0] = 1e-8
     
-    attribute_scores = scores_of_images[:, attribute_idx].to(device)  # (500,)
-    #print(masks.shape)
-    # weighted masks
-
-    filtered_scores = attribute_scores # (N,)
-    filtered_masks = masks  # (N, 1, 224, 224)
+    corr = nominater / denom  # (A, M) # hier varieren wenn negative prediction negative sonst positiv
+    #this part should do the thing we discussed with professor
+    sign_adjustment = torch.where(original_score.view(-1, 1) >= 0, 1.0, -1.0)  # (A, 1)
+    corr = corr * sign_adjustment  # (A, M)
     
-    filtered_scores = filtered_scores.view(-1, 1, 1, 1)  # reshape to (500, 1, 1, 1)
+    return corr
+
+
+def generate_all_saliency_maps(masks, attribute_scores, original_score):
     
-    weighted_masks = filtered_masks * filtered_scores  # (500, 1, 224, 224)
-    
-    # scores = attribute_scores.squeeze().cpu().numpy()  # (500,)
-   
-    # for i, (wm, score) in enumerate(zip(weighted_masks, scores)):
-    #     wm_np = wm.squeeze().cpu().numpy()
+    #Generate saliency maps for all attributes. Returns tensor of shape (A, 1, H, W)
 
-    #     plt.imshow(wm_np, cmap="jet", alpha=0.9)
-    #     plt.title(f"Score: {score:.4f}, max: {wm_np.max()}, min: {wm_np.min()}", fontsize=10)
-    #     plt.axis("off")
-    #     plt.tight_layout()
-    #     plt.savefig(f'{path}{i}.png', bbox_inches="tight", pad_inches=0)
-    #     plt.close()
-        
-    # sum them up
-    saliency_map = torch.sum(weighted_masks, dim=0)  # (1, 224, 224)
+    N, _, H, W = masks.shape
+    M = H * W
 
-    # optionally normalize
-    saliency_map /= (filtered_masks.shape[0] * p) + 1e-8
-    return saliency_map
+    masks_flat = masks.view(N, -1)  # shape: (N, H*W)
+    attribute_scores = attribute_scores.to(device)
+    masks_flat = masks_flat.to(device)
+
+    saliency_flat_all = pearson_correlation_multi(attribute_scores, masks_flat, original_score)  # (A, H*W)
+    saliency_maps = saliency_flat_all.view(attribute_scores.shape[1], 1, H, W)  # (A, 1, H, W)
+    return saliency_maps
 
 
 
 
 
-def process_saliency(attribute_idx, saliency, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args):
+def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args):
+    saliency = saliency_maps[attribute_idx]
+    print(saliency.shape)
     positive_saliency = torch.clamp(saliency.squeeze(0), min=0).cpu()
     #saliency = saliency.squeeze(0).cpu()
 
@@ -246,7 +246,6 @@ def process_saliency(attribute_idx, saliency, orig_image, img_name_no_ext, attri
     celebA_dataset.save_cam(positive_saliency, overlay, attribute_name, img_name_no_ext)
 
 def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args):
-    print(saliency_maps.shape)
     with ThreadPoolExecutor(max_workers=8) as executor:
         futures = []
         for attribute_idx in range(num_attributes):
@@ -259,9 +258,8 @@ def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_
 
 
 
+
 def main():
-    #executor = ThreadPoolExecutor(max_workers=8)  # Adjust depending on your CPU
-    
     args = command_line_options()
     
     if os.path.exists(args.output_directory):
@@ -277,10 +275,14 @@ def main():
     ]
 
 
+    # CelebA_dataset = attribute_cam.CelebA(file_lists,
+    #                                args.source_directory,
+    #                                number_of_images=args.image_count)
+    
     celebA_dataset = attribute_cam.CelebA_perturb(file_lists,
-                                   args.source_directory,
-                                   number_of_images=args.image_count, 
-                                   cam_directory = os.path.join(args.output_directory))
+                                 args.source_directory,
+                                 number_of_images=args.image_count, 
+                                 cam_directory = os.path.join(args.output_directory))
     
     file_list_path = os.path.join(
         args.protocol_directory,
@@ -292,84 +294,48 @@ def main():
         image_paths = image_paths[::-1]
 
     N = args.masks
-    s = 8 # not sure if s should be devided in height and width
+    num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
+    patch_size = 50 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
     first = True
 
-    masks = generate_masks(N, s, p1).to(device)
+    masks = generate_masks(N,num_patches,patch_size)
+    masks = masks.to(device)
     save_masks_as_images(masks,f'{args.output_directory}/masken')
     
     affact = attribute_cam.AFFACT(args.model_type, device)
+    
+    number_of_images = 10
+    with open(f'{args.output_directory}/img_names.txt', "w") as f:
+        for img_name in tqdm(image_paths):#[:number_of_images]
+            f.write(f"{img_name}\n")
 
-
-    # os.environ["CUDA_VISIBLE_DEVICES"]  = "0,4"
-    # gpus = [0,1]
-    # #affact.cuda()
-    # affact =  DataParallel(affact, device_ids = gpus)
-
-
-    # affact.eval()
+    
     for attribute_idx in range(0,num_attributes):        
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
-
-    number_of_images = 20
-    with open(f'{args.output_directory}/img_names.txt', "w") as f:
-        for img_name in tqdm(image_paths): #[:number_of_images]
-            f.write(f"{img_name}\n")
-
-
     # perturb images with masks and save them
     with torch.no_grad():
-        for img_name in tqdm(image_paths): #[:number_of_images]
+        for img_name in tqdm(image_paths):#[:number_of_images]
             img_path = f"{args.source_directory}/{img_name}"
-            print(f"Processing image: {img_path}")
-            image, orig_image  = load_img(img_path)
+    #         print(f"Processing image: {img_path}")
+            image, orig_image = load_img(img_path)
             img_name_no_ext, _ = os.path.splitext(img_name)
 
-            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext,
-                             N)
-            # if(first):
-            #     print(perturbed_images[0].shape)
-            #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
-            #     first = False
+            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, N)
+            if(first):
+                save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
+                first = False
             
-            scores_of_images = affact.predict_logit(perturbed_images)
+            original_score = affact.predict_corrrise((image,f"original_{img_name_no_ext}")).to(device)
+            scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
+    #         # Generate saliency map
+            saliency_maps = generate_all_saliency_maps(masks, scores_of_images, original_score) #shape (40,1,224,224)
+            print(saliency_maps.shape)
             
-            # Generate saliency map
-            for attribute_idx in range(0,num_attributes):
-            
-                saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
-                #saliency_map 1x224x224
-                #print(saliency_map.shape)
-                # plt.imshow(saliency_map.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.7)
-                # plt.axis("off")
-                # plt.savefig(f"{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png", bbox_inches='tight')
-                # plt.close()
-                saliency = saliency_map.squeeze(0).cpu() 
-                saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
-                # Normalize to [0, 1]
-                
-            # NOTE: The source image for this function is float in range [0,1]
-            # the ouput of it is uint8 in range [0,255]
-                #print(f"original {orig_image.shape}, {orig_image.max()} { orig_image.min()} {type(orig_image)}")
-                #print(f'saliency {saliency.shape} {saliency.max()} {saliency.min()}')
-               
-                #process_saliency(attribute_idx, saliency_map, orig_image, img_name_no_ext, attribute_cam.dataset.ATTRIBUTES[attribute_idx], celebA_dataset, args)
-                
-                #methode 2
-                celebA_dataset.save_perturb(saliency,orig_image,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png')
-               
-               
-               
-               
-                #overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
-                #celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
-            
-
-            # del image, orig_image, perturbed_images, saliency_map, saliency, scores_of_images
-            # torch.cuda.empty_cache()
+            #much faster in saving saliency maps for all attributes
+            process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
 

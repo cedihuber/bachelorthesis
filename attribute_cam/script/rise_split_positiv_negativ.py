@@ -36,7 +36,7 @@ import pdb
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:7" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:6" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -64,7 +64,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/riseResult/balanced/rise_logits_4000_masks_p_0_75",
+        default="../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -91,7 +91,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=4000,
+        default=3000,
         type=int,
         help='Number of masks per image'
     )
@@ -192,36 +192,25 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
         
        
             
-def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,path):    
+def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,original_score, path):    
     
-    attribute_scores = scores_of_images[:, attribute_idx].to(device)  # (500,)
-    #print(masks.shape)
+    filtered_scores = scores_of_images[:, attribute_idx].to(device)  # (500,)
+    
     # weighted masks
-
-    filtered_scores = attribute_scores # (N,)
-    filtered_masks = masks  # (N, 1, 224, 224)
+    sign = torch.where(original_score[:, attribute_idx] > 0, -1.0, 1.0).to(device)
+    score = (sign*(filtered_scores - original_score[:, attribute_idx].to(device))).to(device)
+    shaped_score = score.view(-1, 1, 1, 1).to(device)
+    weighted_masks = masks * shaped_score  # (500, 1, 224, 224)
     
-    filtered_scores = filtered_scores.view(-1, 1, 1, 1)  # reshape to (500, 1, 1, 1)
+    #anpassung wegen sign
+    positive_indices = score > 0  # Shape: (500,)
+    filtered_masks = weighted_masks[positive_indices]
     
-    weighted_masks = filtered_masks * filtered_scores  # (500, 1, 224, 224)
-    
-    # scores = attribute_scores.squeeze().cpu().numpy()  # (500,)
-   
-    # for i, (wm, score) in enumerate(zip(weighted_masks, scores)):
-    #     wm_np = wm.squeeze().cpu().numpy()
-
-    #     plt.imshow(wm_np, cmap="jet", alpha=0.9)
-    #     plt.title(f"Score: {score:.4f}, max: {wm_np.max()}, min: {wm_np.min()}", fontsize=10)
-    #     plt.axis("off")
-    #     plt.tight_layout()
-    #     plt.savefig(f'{path}{i}.png', bbox_inches="tight", pad_inches=0)
-    #     plt.close()
-        
-    # sum them up
-    saliency_map = torch.sum(weighted_masks, dim=0)  # (1, 224, 224)
+    # only take those masks when the direction of change is correct, positiv change goes down, negativ change goes up
+    saliency_map = -torch.sum(filtered_masks, dim=0)  # (1, 224, 224)
 
     # optionally normalize
-    saliency_map /= (filtered_masks.shape[0] * p) + 1e-8
+    saliency_map /= (masks.shape[0] * p) + 1e-8
     return saliency_map
 
 
@@ -314,7 +303,7 @@ def main():
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
 
-    number_of_images = 20
+    number_of_images = 500
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths): #[:number_of_images]
             f.write(f"{img_name}\n")
@@ -335,12 +324,13 @@ def main():
             #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
             #     first = False
             
+            score_original = affact.predict_logit((image,f"original_{img_name_no_ext}"))
             scores_of_images = affact.predict_logit(perturbed_images)
             
             # Generate saliency map
             for attribute_idx in range(0,num_attributes):
             
-                saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
+                saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images,score_original,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
                 #saliency_map 1x224x224
                 #print(saliency_map.shape)
                 # plt.imshow(saliency_map.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.7)

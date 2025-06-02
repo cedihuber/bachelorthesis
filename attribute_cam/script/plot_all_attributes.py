@@ -49,10 +49,10 @@ Attrs=[
 
 def plot(filter_key):
     attrs = Attrs
-    images = [mpimg.imread(f"../../../../local/scratch/chuber/result/corrRise_masks_black_1batchs_30size_2000masks/{filter_key}/" + attr+".png") for attr in attrs]
+    images = [mpimg.imread(f"../../../../local/scratch/chuber/corrRiseResultAdapted/corrRise_masks_black_2000_masks/{filter_key}/" + attr+".png") for attr in attrs]
    
  
-    with PdfPages(f'../../../../local/scratch/chuber/result/corrRise_masks_black_1batchs_30size_2000masks/a_{filter_key}.pdf') as pdf:
+    with PdfPages(f'../../../../local/scratch/chuber/corrRiseResultAdapted/corrRise_masks_black_2000_masks/a_{filter_key}.pdf') as pdf:
         fig, axes = plt.subplots(5, 8, figsize=(24, 15))  
         for i, ax in enumerate(axes.flat):
             if i < len(images):
@@ -72,7 +72,7 @@ def plot(filter_key):
 
 def plot_as_png(filter_key):
     attrs = Attrs
-    images = [mpimg.imread(f"../../../../local/scratch/chuber/result/corrRise_masks_blurry_10batchs_30size_500masks_1000images/{filter_key}/" + attr + ".png") for attr in attrs]
+    images = [mpimg.imread(f"../../../../local/scratch/chuber/corrRiseResultAdapted/balanced/corrRise_masks_black_2000_masks/{filter_key}/" + attr + ".png") for attr in attrs]
 
     fig, axes = plt.subplots(5, 8, figsize=(24, 15))  
     for i, ax in enumerate(axes.flat):

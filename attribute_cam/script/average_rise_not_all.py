@@ -28,7 +28,7 @@ def command_line_options():
   )
   parser.add_argument(
       '-o', '--output-directory',
-      default="../../../../local/scratch/chuber/corrRiseResult/balanced/corrRise_masks_black_white_1batchs_30size_2000masks",
+      default="../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75", #corrRiseResult/unbalanced/
       help="Path to folder where the output should be stored"
   )
   parser.add_argument(
@@ -71,7 +71,7 @@ def main():
   args = command_line_options()
 
   # get some directories
-  file_lists = [os.path.join("../../../../local/scratch/chuber/corrRiseResult/balanced/corrRise_masks_black_white_1batchs_30size_2000masks/img_names.txt")]
+  file_lists = [os.path.join("../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75/img_names.txt")] #corrRiseResult/unbalanced/
   cam_directory = args.output_directory
   # read ground truth and predictions
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")

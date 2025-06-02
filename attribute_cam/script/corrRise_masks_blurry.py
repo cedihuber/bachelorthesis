@@ -38,7 +38,7 @@ import cv2
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -66,7 +66,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/corrRiseResult/balanced/corrRise_masks_blurry_1batchs_30size_2000masks",
+        default="../../../../local/scratch/chuber/corrRiseResult/unbalanced/corrRise_masks_blurry_1batchs_30size_2000masks",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -75,7 +75,7 @@ def command_line_options():
                         help="if given, limit the number of images")
     parser.add_argument('-m',
                         '--model-type',
-                        default='balanced',
+                        default='unbalanced',
                         choices=['balanced', 'unbalanced'],
                         help="Can be balanced or unbalanced")
     parser.add_argument(

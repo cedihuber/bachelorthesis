@@ -34,7 +34,7 @@ from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -62,7 +62,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/corrRise_masks_black_1batchs_30size_2000masks",
+        default="../../../../local/scratch/chuber/result/testing",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -89,7 +89,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=2000,
+        default=4000,
         type=int,
         help='Number of masks per image'
     )
@@ -188,7 +188,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
 
 def pearson_correlation_multi(x, y): # x shape (500,40) y shape (500,50176)
     # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
-    x = x - x.mean(dim=0, keepdim=True)  # (N, A)
+    x = x - x.mean(dim=0, keepdim=True)  # (N, A) hier den original score abziehen
     y = y - y.mean(dim=0, keepdim=True)  # (N, M)
     nominater = torch.matmul(x.T, y)
     #print(f'x = {x.shape}, y = {y.shape}')
@@ -198,7 +198,7 @@ def pearson_correlation_multi(x, y): # x shape (500,40) y shape (500,50176)
     denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
     denom[denom == 0] = 1e-8
 
-    corr = nominater / denom  # (A, M)
+    corr = nominater / denom  # (A, M) # hier varieren wenn negative prediction negative sonst positiv
     return corr
 
 
@@ -224,10 +224,10 @@ def generate_all_saliency_maps(masks, attribute_scores):
 def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args):
     saliency = saliency_maps[attribute_idx]
     positive_saliency = torch.clamp(saliency.squeeze(0), min=0).cpu()
-    saliency = saliency.squeeze(0).cpu()
+    #saliency = saliency.squeeze(0).cpu()
 
     # Normalize to [0, 1]
-    saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
+    #saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
     positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
     
     # celebA_dataset.save_perturb(positive_saliency,f'{args.output_directory}/{attribute_name}/{img_name_no_ext}.png')

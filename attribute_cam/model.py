@@ -87,7 +87,7 @@ class AFFACT:
     
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 20
+    batch_size = 32
     all_predictions = []
     
     #images = images.to(self.device)
@@ -142,7 +142,7 @@ class AFFACT:
   def predict_sigmoid(self, perturbed_images):
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 20
+    batch_size = 32
     all_predictions = []
    #images = images.to(self.device)
     with torch.no_grad():
@@ -193,7 +193,7 @@ class AFFACT:
     
     images, filenames = perturbed_images
     num_images = images.shape[0]
-    batch_size = 1
+    batch_size = 32
     all_predictions = []
     #print(images.shape)
     images = images.to(self.device)

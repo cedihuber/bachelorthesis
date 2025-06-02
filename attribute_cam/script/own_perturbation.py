@@ -34,9 +34,17 @@ from torch.nn import DataParallel
 from tqdm import tqdm
 import pdb
 
+
+
+def save_saliency(colored_rgb, saliency_np, base_path):
+    # Save image
+    Image.fromarray(colored_rgb).save(f"{base_path}.png")
+    # Save numpy array
+    np.save(f"{base_path}.png.npy", saliency_np)
+
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:7" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:5" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -64,7 +72,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/riseResult/balanced/rise_logits_4000_masks_p_0_75",
+        default="../../../../local/scratch/chuber/result/own_perturbation_4000masks_abs_0_85",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -84,7 +92,7 @@ def command_line_options():
     parser.add_argument(
         '-percentage',
         '--percentage',
-        default=0.75, # 0.25 not so good results
+        default=0.85, # 0.25 not so good results
         type=float,
         help='How big is the part of a mask'
     )
@@ -192,13 +200,14 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
         
        
             
-def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,path):    
+def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,original_score,path):    
     
     attribute_scores = scores_of_images[:, attribute_idx].to(device)  # (500,)
+    attribute_original_scores = original_score[:, attribute_idx].to(device)
     #print(masks.shape)
     # weighted masks
 
-    filtered_scores = attribute_scores # (N,)
+    filtered_scores = -torch.abs(attribute_scores-attribute_original_scores) # (N,)
     filtered_masks = masks  # (N, 1, 224, 224)
     
     filtered_scores = filtered_scores.view(-1, 1, 1, 1)  # reshape to (500, 1, 1, 1)
@@ -223,40 +232,6 @@ def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,pat
     # optionally normalize
     saliency_map /= (filtered_masks.shape[0] * p) + 1e-8
     return saliency_map
-
-
-
-
-
-def process_saliency(attribute_idx, saliency, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args):
-    positive_saliency = torch.clamp(saliency.squeeze(0), min=0).cpu()
-    #saliency = saliency.squeeze(0).cpu()
-
-    # Normalize to [0, 1]
-    #saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
-    positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
-    
-    # celebA_dataset.save_perturb(positive_saliency,f'{args.output_directory}/{attribute_name}/{img_name_no_ext}.png')
-    
-    # Generate overlay
-    overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, positive_saliency.numpy(), use_rgb=True)
-    # print(f'overlay{overlay.shape}, max {overlay.max()}, min {overlay.min()}')
-    # print(f'saliency{positive_saliency.shape}, max {positive_saliency.max()}, min {positive_saliency.min()}')
-    # Save RISE activation
-    celebA_dataset.save_cam(positive_saliency, overlay, attribute_name, img_name_no_ext)
-
-def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args):
-    print(saliency_maps.shape)
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = []
-        for attribute_idx in range(num_attributes):
-            attribute_name = attribute_cam.dataset.ATTRIBUTES[attribute_idx]
-            futures.append(executor.submit(process_saliency, attribute_idx, saliency_maps, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args))
-        
-        # Wait for all tasks to finish
-        for future in futures:
-            future.result()
-
 
 
 def main():
@@ -314,7 +289,7 @@ def main():
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
 
-    number_of_images = 20
+    number_of_images = 200
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths): #[:number_of_images]
             f.write(f"{img_name}\n")
@@ -335,12 +310,14 @@ def main():
             #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
             #     first = False
             
+            #different scores for the perturbed images
+            #scores_of_images = affact.predict_logit(perturbed_images)
+            original_score = affact.predict_logit((image,f"original_{img_name_no_ext}"))
             scores_of_images = affact.predict_logit(perturbed_images)
-            
-            # Generate saliency map
+
             for attribute_idx in range(0,num_attributes):
             
-                saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
+                saliency_map = generate_saliency_map(masks, img_name, args.percentage, attribute_idx, scores_of_images, original_score,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}')
                 #saliency_map 1x224x224
                 #print(saliency_map.shape)
                 # plt.imshow(saliency_map.squeeze(0).cpu().numpy(), cmap="jet", alpha=0.7)
@@ -355,15 +332,8 @@ def main():
             # the ouput of it is uint8 in range [0,255]
                 #print(f"original {orig_image.shape}, {orig_image.max()} { orig_image.min()} {type(orig_image)}")
                 #print(f'saliency {saliency.shape} {saliency.max()} {saliency.min()}')
-               
-                #process_saliency(attribute_idx, saliency_map, orig_image, img_name_no_ext, attribute_cam.dataset.ATTRIBUTES[attribute_idx], celebA_dataset, args)
                 
-                #methode 2
                 celebA_dataset.save_perturb(saliency,orig_image,f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}/{img_name_no_ext}.png')
-               
-               
-               
-               
                 #overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, saliency.numpy(), use_rgb=True)
                 #celebA_dataset.save_cam(saliency, overlay, attribute_cam.dataset.ATTRIBUTES[attribute_idx], img_name_no_ext) #attribute ist namen von attribute
             
