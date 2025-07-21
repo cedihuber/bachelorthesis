@@ -3,9 +3,9 @@ import argparse
 import os
 from datetime import datetime
 from tqdm import tqdm
+import torchvision
 import attribute_cam
 from CelebA.perturb_protocol.list_names import list_names
-import torchvision
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,7 +15,6 @@ from keras import backend as K
 from skimage.transform import resize
 import torch
 import torch.nn.functional as F
-from PIL import Image
 import shutil
 import random
 import pytorch_grad_cam
@@ -24,12 +23,7 @@ import cProfile
 import pstats
 
 import pandas as pd
-from tqdm import tqdm
-import os
-import numpy as np
-import torchvision
 import cv2
-import torch
 from PIL import Image
 import json
 
@@ -81,13 +75,6 @@ def command_line_options():
         help='Do not use GPU acceleration (will be **disabled** when selected)'
     )
     parser.add_argument(
-        '-percentage',
-        '--percentage',
-        default=0.5, # 0.25 not so good results
-        type=float,
-        help='How big is the part of a mask'
-    )
-    parser.add_argument(
         '-masks',
         '--masks',
         default=3000,
@@ -100,6 +87,13 @@ def command_line_options():
         default=40,
         type=int,
         help='Number of masks per image'
+    )
+    parser.add_argument(
+        '-patchsize',
+        '--patchsize',
+        default=30,
+        type=int,
+        help='Size of one patch'
     )
     
     args = parser.parse_args()
@@ -303,11 +297,6 @@ def main():
         os.path.join(args.protocol_directory,
                      f"aligned_224x224_{args.which_set}_filtered_0.1.txt")
     ]
-
-
-    # CelebA_dataset = attribute_cam.CelebA(file_lists,
-    #                                args.source_directory,
-    #                                number_of_images=args.image_count)
     
     celebA_dataset = attribute_cam.CelebA_perturb(file_lists,
                                  args.source_directory,
@@ -325,8 +314,7 @@ def main():
 
     N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 30 #original paper 30
-    p1 = args.percentage #modifiy and check results
+    patch_size = args.patchsize #original paper 30
     num_attributes = args.attributes
     first = True
 
@@ -363,11 +351,8 @@ def main():
             
             original_score = affact.predict_corrrise((image,f"original_{img_name_no_ext}")).to(device)
             scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
-    #         # Generate saliency map
-            saliency_maps = generate_all_saliency_maps(masks_activation, scores_of_images, original_score) #shape (40,1,224,224)
-            print(saliency_maps.shape)
             
-            #much faster in saving saliency maps for all attributes
+            saliency_maps = generate_all_saliency_maps(masks_activation, scores_of_images, original_score) #shape (40,1,224,224)
             process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
@@ -375,23 +360,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # # Profile your main function or any function
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-
-    # main()  # Replace with your main function or the function you want to profile
-
-    # profiler.disable()
-
-    # # Save the profile output to a file
-    # profiler.dump_stats('profile_output.prof')
-
-    # # Read the profile output from the file
-    # stats = pstats.Stats('profile_output.prof')
-
-    # # Sort by cumulative time ('cumtime') to identify the slowest parts
-    # stats.sort_stats('cumtime')
-
-    # # Print the top 20 slowest functions
-    # stats.print_stats(20)
-    

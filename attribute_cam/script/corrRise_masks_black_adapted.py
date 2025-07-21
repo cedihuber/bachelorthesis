@@ -25,12 +25,8 @@ import pstats
 import json
 
 import pandas as pd
-from tqdm import tqdm
-import os
-import numpy as np
 import torchvision
 import cv2
-import torch
 from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
@@ -81,13 +77,6 @@ def command_line_options():
         help='Do not use GPU acceleration (will be **disabled** when selected)'
     )
     parser.add_argument(
-        '-percentage',
-        '--percentage',
-        default=0.5, # 0.25 not so good results
-        type=float,
-        help='How big is the part of a mask'
-    )
-    parser.add_argument(
         '-masks',
         '--masks',
         default=1000,
@@ -100,6 +89,13 @@ def command_line_options():
         default=40,
         type=int,
         help='Number of masks per image'
+    )
+    parser.add_argument(
+        '-patchsize',
+        '--patchsize',
+        default=30,
+        type=int,
+        help='Size of one patch'
     )
     
     args = parser.parse_args()
@@ -130,7 +126,6 @@ def generate_masks(N,num_patches, patch_size, image_size=(224, 224), save_path =
             x = random.randint(0, image_size[0] - patch_size)
             y = random.randint(0, image_size[1] - patch_size)
             image_coords.append((x, y))
-            # Random values in [0, 1] for the patch nur 1 oder 0 nicht zwischen 1 und 0
             patch = torch.zeros((patch_size, patch_size), dtype=torch.float32, device=device)
             # Add the patch into the mask
             masks[i, 0, y:y+patch_size, x:x+patch_size] = patch
@@ -189,17 +184,13 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     image = image.to(device)
     image_expanded = image.unsqueeze(0).expand(masks.shape[0], -1, -1, -1)  # Shape: (N, 3, H, W)
 
-    # Apply masks using batch-wise multiplication
-    # Masks shape: (N, 1, H, W) -> Expand to (N, 3, H, W) to match image # die werte nicht multiplizieren aber ersetzten, 
-    #perturbed_images = image_expanded * masks.expand(-1, 3, -1, -1)
-       # Start with original image
     masks_expanded = masks.expand(-1, 3, -1, -1)
     perturbed = image_expanded * masks_expanded
     
     # Generate filenames
     perturbed_filenames = [f'perturbed_image_{img_name}_{i}' for i in range(masks.shape[0])]
 
-    return perturbed, perturbed_filenames #list(zip(perturbed_images, perturbed_filenames))
+    return perturbed, perturbed_filenames
     
 
 
@@ -216,8 +207,7 @@ def pearson_correlation_multi(x, y, original_score): # x shape (500,40) y shape 
     denom = torch.matmul(x_norm.T, y_norm)  # (A, M)
     denom[denom == 0] = 1e-8
     
-    corr = nominater / denom  # (A, M) # hier varieren wenn negative prediction negative sonst positiv
-    #this part should do the thing we discussed with professor
+    corr = nominater / denom  # (A, M)
     sign_adjustment = torch.where(original_score.view(-1, 1) >= 0, 1.0, -1.0)  # (A, 1)
     corr = corr * sign_adjustment  # (A, M)
     
@@ -250,16 +240,10 @@ def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, 
     #saliency = saliency.squeeze(0).cpu()
 
     # Normalize to [0, 1]
-    #saliency = (saliency - saliency.min()) / (saliency.max() - saliency.min() + 1e-8)
     positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
-    
-    # celebA_dataset.save_perturb(positive_saliency,f'{args.output_directory}/{attribute_name}/{img_name_no_ext}.png')
     
     # Generate overlay
     overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, positive_saliency.numpy(), use_rgb=True)
-    # print(f'overlay{overlay.shape}, max {overlay.max()}, min {overlay.min()}')
-    # print(f'saliency{positive_saliency.shape}, max {positive_saliency.max()}, min {positive_saliency.min()}')
-    # Save RISE activation
     celebA_dataset.save_cam(positive_saliency, overlay, attribute_name, img_name_no_ext)
 
 def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args):
@@ -290,11 +274,6 @@ def main():
         os.path.join(args.protocol_directory,
                      f"aligned_224x224_{args.which_set}_filtered_0.1.txt")
     ]
-
-
-    # CelebA_dataset = attribute_cam.CelebA(file_lists,
-    #                                args.source_directory,
-    #                                number_of_images=args.image_count)
     
     celebA_dataset = attribute_cam.CelebA_perturb(file_lists,
                                  args.source_directory,
@@ -312,8 +291,7 @@ def main():
 
     N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 30 #original paper 30
-    p1 = args.percentage #modifiy and check results
+    patch_size = args.patchsize #original paper 30
     num_attributes = args.attributes
     first = True
 

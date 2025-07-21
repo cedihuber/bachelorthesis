@@ -85,13 +85,6 @@ def command_line_options():
         help='Do not use GPU acceleration (will be **disabled** when selected)'
     )
     parser.add_argument(
-        '-percentage',
-        '--percentage',
-        default=0.5, # 0.25 not so good results
-        type=float,
-        help='How big is the part of a mask'
-    )
-    parser.add_argument(
         '-masks',
         '--masks',
         default=3000,
@@ -104,6 +97,13 @@ def command_line_options():
         default=40,
         type=int,
         help='Number of masks per image'
+    )
+    parser.add_argument(
+        '-patchsize',
+        '--patchsize',
+        default=30,
+        type=int,
+        help='Size of one patch'
     )
     
     args = parser.parse_args()
@@ -323,8 +323,7 @@ def main():
 
     N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 50 #original paper 30
-    p1 = args.percentage #modifiy and check results
+    patch_size = args.patchsize #original paper 30
     num_attributes = args.attributes
     first = True
 
