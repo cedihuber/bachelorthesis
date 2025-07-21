@@ -44,7 +44,7 @@ def command_line_options():
   parser.add_argument(
       '-m', '--model-types',
       nargs="+",
-      default=['unbalanced', 'balanced'],
+      default=['balanced','unbalanced'],
       choices=['unbalanced', 'balanced'],
       help="Can be balanced or unbalanced"
   )
@@ -74,7 +74,7 @@ def command_line_options():
   )
   parser.add_argument(
       "-l", "--latex-file",
-      default="result_table.tex",
+      default="a_result_table.tex",
       help="Select the file where to write errors into"
   )
   parser.add_argument(
@@ -104,7 +104,6 @@ def main():
 
   # create masks
   masks, mask_sizes = attribute_cam.get_masks()
-
   if args.overlay_image is not None:
     # write masks overlayed with the given image
     attribute_cam.write_masks(masks, os.path.join(args.source_directory, args.overlay_image), args.mask_directory)
@@ -117,7 +116,7 @@ def main():
     # read predictions
     prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, model_type)
     prediction = attribute_cam.read_list(prediction_file, ",", 0)
-    cam_directory = os.path.join(args.output_directory, model_type, args.cam_type)
+    cam_directory = "../../../../local/scratch/chuber/corrRiseStyles/balanced/corrRise_masks_black_white_3000_masks_30_patch" #os.path.join(args.output_directory, model_type, args.cam_type)
 
     # create dataset
     dataset = attribute_cam.CelebA(
@@ -183,5 +182,8 @@ def main():
 
   print(tabulate.tabulate(table, headers = ["Attribute","Positives"] + ["FNR", "FPR"] * len(args.model_types) + args.filters * len(args.model_types), floatfmt="#.3f"))
 
-  with open(args.latex_file, "w") as w:
+  with open(f"{cam_directory}/{args.latex_file}", "w") as w:
     w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))
+
+if(__name__ == "__main__"):
+    main()

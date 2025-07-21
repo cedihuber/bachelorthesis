@@ -28,7 +28,7 @@ def command_line_options():
   )
   parser.add_argument(
       '-o', '--output-directory',
-      default="../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75", #corrRiseResult/unbalanced/
+      default="../../../../local/scratch/chuber/Finalresults/unbalanced/corrRise_masks_black_3000_masks_30_patch", #corrRiseResult/unbalanced/
       help="Path to folder where the output should be stored"
   )
   parser.add_argument(
@@ -44,7 +44,7 @@ def command_line_options():
   )
   parser.add_argument(
       '-m', '--model-type',
-      default='balanced',
+      default='unbalanced',
       choices=['balanced', 'unbalanced'],
       help="Can be balanced or unbalanced"
   )
@@ -71,7 +71,8 @@ def main():
   args = command_line_options()
 
   # get some directories
-  file_lists = [os.path.join("../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75/img_names.txt")] #corrRiseResult/unbalanced/
+  file_lists = [os.path.join(args.output_directory,"img_names.txt")] #corrRiseResult/unbalanced/
+  #file_lists = [os.path.join(args.protocol_directory,f"aligned_224x224_{args.which_set}_filtered_0.1.txt")]
   cam_directory = args.output_directory
   # read ground truth and predictions
   ground_truth_file = os.path.join(args.protocol_directory, "list_attr_celeba.txt")

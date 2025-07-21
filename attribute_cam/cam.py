@@ -78,8 +78,9 @@ def average_cam(celeba_dataset, filter_function):
     for image_index in celeba_dataset:
       # apply filter function to get only the images that we want
       if filter_function(image_index,attribute):
+        
         # load images
-        #print(image_index,end="\n")
+        print(image_index,end="\n")
         activation, overlay = celeba_dataset.load_cam(attribute, image_index)
         # average activation brauch ich nicht
         #print(f'activation max {activation.max()}, min {activation.min()}')
@@ -89,7 +90,6 @@ def average_cam(celeba_dataset, filter_function):
         overlays += overlay
         activations += activation
         counter += 1
-
     #activations = (activations - activations.min())/ (activations.max()-activations.min())*255
     #overlays = (overlays - overlays.min())/ (overlays.max()-overlays.min())*255
     # save averages

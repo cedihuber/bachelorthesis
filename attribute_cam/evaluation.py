@@ -1,5 +1,6 @@
 import numpy
 import tqdm
+from PIL import Image
 
 def accetptable_mask_ratio(activation, mask, mask_size):
   # count pixels with activation and check whether they are within or outside of mask
@@ -21,9 +22,23 @@ def accetptable_mask_ratio(activation, mask, mask_size):
   return amr, amr_corr #, mask_relative, count_activated, count_true_positive, count_false_positive
 
 
+def save_activation_as_png(activation, filename):
+    # Normalize activation to 0–255
+    filename = f"../../../../local/scratch/chuber/Finalresults/unbalanced/corrRise_masks_black_3000_masks_50_patch/{filename}"
+    activation_normalized = activation - numpy.min(activation)
+    if numpy.max(activation_normalized) > 0:
+        activation_normalized = activation_normalized / numpy.max(activation_normalized)
+    activation_image = (activation_normalized * 255).astype(numpy.uint8)
+    
+    # Convert to Image and save
+    img = Image.fromarray(activation_image)
+    img.save(filename)
+
+
 def proportional_energy(activation, mask, mask_size):
   # compute proportional energy
   # .. energy that is contained in the mask
+  save_activation_as_png(mask,"maske.png")
   pos = numpy.sum(activation * (mask > 0))
   # .. total energy in the image
   total = numpy.sum(activation)
@@ -48,7 +63,7 @@ def statisics(celeba_dataset, filter_function, masks, mask_sizes, prop_energy=Tr
     for image_index in celeba_dataset:
       if filter_function(image_index, attribute):
         activation, _ = celeba_dataset.load_cam(attribute, image_index)
-
+        save_activation_as_png(activation,f"{attribute}{image_index}.png")
         if prop_energy:
           rates.append(proportional_energy(activation,masks[attribute],mask_sizes[attribute]))
         else:
@@ -57,6 +72,7 @@ def statisics(celeba_dataset, filter_function, masks, mask_sizes, prop_energy=Tr
     # compute mean and std
     if rates:
       means[attribute] = numpy.mean(rates, axis=0)
+      print(means)
       stds[attribute] = numpy.std(rates, axis=0)
     else:
       means[attribute] = [0,0]

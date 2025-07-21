@@ -74,7 +74,7 @@ def command_line_options():
   )
   parser.add_argument(
       "-l", "--latex-file",
-      default="result_table.tex",
+      default="a_prop_result_table.tex",
       help="Select the file where to write errors into"
   )
   parser.add_argument(
@@ -104,7 +104,7 @@ def main():
 
   # create masks
   masks, mask_sizes = attribute_cam.get_masks()
-
+  #attribute_cam.write_masks(masks,"../../../../local/scratch/datasets/CelebA/aligned_224x224/183462.png" , args.mask_directory)
   if args.overlay_image is not None:
     # write masks overlayed with the given image
     attribute_cam.write_masks(masks, os.path.join(args.source_directory, args.overlay_image), args.mask_directory)
@@ -138,7 +138,8 @@ def main():
       print(f"Analyzing CAMS of type {args.cam_type} for {filter_type} filter, model {model_type} and {len(dataset.attributes)} attributes")
 
       # compute acceptable mask ratios
-      stats = attribute_cam.statisics(dataset, filter, masks, mask_sizes, prop_energy=args.prop_energy)
+      print(args.prop_energy)
+      stats = attribute_cam.statisics(dataset, filter, masks, mask_sizes, prop_energy=True)#args.prop_energy
 
       means[(model_type,filter_type)] = stats[0]
       stds[(model_type,filter_type)] = stats[1]

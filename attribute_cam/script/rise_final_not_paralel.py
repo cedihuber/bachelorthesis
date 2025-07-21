@@ -36,7 +36,7 @@ import pdb
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:7" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:5" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -64,7 +64,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/riseResult/balanced/rise_logits_4000_masks_p_0_75",
+        default="../../../../local/scratch/chuber/result/testing",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -84,14 +84,14 @@ def command_line_options():
     parser.add_argument(
         '-percentage',
         '--percentage',
-        default=0.75, # 0.25 not so good results
+        default=0.5, # 0.25 not so good results
         type=float,
         help='How big is the part of a mask'
     )
     parser.add_argument(
         '-masks',
         '--masks',
-        default=4000,
+        default=100,
         type=int,
         help='Number of masks per image'
     )
@@ -314,7 +314,7 @@ def main():
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
 
-    number_of_images = 20
+    number_of_images = 50
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
         for img_name in tqdm(image_paths): #[:number_of_images]
             f.write(f"{img_name}\n")
@@ -322,7 +322,7 @@ def main():
 
     # perturb images with masks and save them
     with torch.no_grad():
-        for img_name in tqdm(image_paths): #[:number_of_images]
+        for img_name in tqdm(image_paths[:number_of_images]): #[:number_of_images]
             img_path = f"{args.source_directory}/{img_name}"
             print(f"Processing image: {img_path}")
             image, orig_image  = load_img(img_path)
@@ -330,10 +330,10 @@ def main():
 
             perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext,
                              N)
-            # if(first):
-            #     print(perturbed_images[0].shape)
-            #     save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
-            #     first = False
+            #if(first):
+            print(perturbed_images[0].shape)
+            save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
+            first = False
             
             scores_of_images = affact.predict_logit(perturbed_images)
             

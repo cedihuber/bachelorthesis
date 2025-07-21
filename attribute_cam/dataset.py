@@ -122,8 +122,8 @@ class CelebA:
 
   # loads a CAM image, either for a given item/image or an average
   def load_cam(self, attribute, item=None):
-    print(attribute,item,end = "fdf\n")
     filename = self.cam_filename(attribute, item)
+    #print(filename)
     overlay = torchvision.io.image.read_image(filename).numpy().transpose(1,2,0)
     activation = numpy.load(filename + ".npy")
     return activation, overlay

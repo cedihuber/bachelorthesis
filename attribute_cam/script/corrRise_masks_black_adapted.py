@@ -22,6 +22,7 @@ import pytorch_grad_cam
 from concurrent.futures import ThreadPoolExecutor
 import cProfile
 import pstats
+import json
 
 import pandas as pd
 from tqdm import tqdm
@@ -34,7 +35,7 @@ from PIL import Image
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -62,7 +63,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/corrRiseResultAdapted/balanced/corrRise_masks_black_2000_masks_50_patch",
+        default="../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_1000_masks_30_patch",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -89,7 +90,7 @@ def command_line_options():
     parser.add_argument(
         '-masks',
         '--masks',
-        default=2000,
+        default=1000,
         type=int,
         help='Number of masks per image'
     )
@@ -117,22 +118,38 @@ def load_img(path, input_size=(224, 224)):
 
 
 # Generate masks
-def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
+def generate_masks(N,num_patches, patch_size, image_size=(224, 224), save_path = None):
     
     masks =  torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
-
+    coords = []
 
     for i in range(N):
+        image_coords = []
         for _ in range(num_patches):
             # Random patch position
             x = random.randint(0, image_size[0] - patch_size)
             y = random.randint(0, image_size[1] - patch_size)
-
+            image_coords.append((x, y))
             # Random values in [0, 1] for the patch nur 1 oder 0 nicht zwischen 1 und 0
             patch = torch.zeros((patch_size, patch_size), dtype=torch.float32, device=device)
             # Add the patch into the mask
             masks[i, 0, y:y+patch_size, x:x+patch_size] = patch
-            
+        coords.append(image_coords)
+    with open(save_path, 'w') as f:
+        json.dump(coords, f)       
+    return masks
+
+def generate_masks_from_coords(patch_size, image_size=(224, 224), load_path=None):
+    with open(load_path, 'r') as f:
+        coords = json.load(f)
+
+    N = len(coords)
+    masks = torch.ones((N, 1, image_size[0], image_size[1]), dtype=torch.float32, device=device)
+
+    for i, image_coords in enumerate(coords):
+        for x, y in image_coords:
+            masks[i, 0, y:y+patch_size, x:x+patch_size] = 0
+
     return masks
 
 
@@ -228,7 +245,7 @@ def generate_all_saliency_maps(masks, attribute_scores, original_score):
 
 def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, attribute_name, celebA_dataset, args):
     saliency = saliency_maps[attribute_idx]
-    print(saliency.shape)
+    #print(saliency.shape)
     positive_saliency = torch.clamp(saliency.squeeze(0), min=0).cpu()
     #saliency = saliency.squeeze(0).cpu()
 
@@ -295,12 +312,14 @@ def main():
 
     N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = 50 #original paper 30
+    patch_size = 30 #original paper 30
     p1 = args.percentage #modifiy and check results
     num_attributes = args.attributes
     first = True
 
-    masks = generate_masks(N,num_patches,patch_size)
+    #masks = generate_masks(N,num_patches,patch_size,save_path = os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_30_not_used.txt"))
+    
+    masks = generate_masks_from_coords(patch_size, image_size=(224, 224), load_path = os.path.join(args.protocol_directory,"mask_coordinates_1000masks_patch_30.txt"))
     masks = masks.to(device)
     save_masks_as_images(masks,f'{args.output_directory}/masken')
     
@@ -332,7 +351,7 @@ def main():
             scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
     #         # Generate saliency map
             saliency_maps = generate_all_saliency_maps(masks, scores_of_images, original_score) #shape (40,1,224,224)
-            print(saliency_maps.shape)
+            #print(saliency_maps.shape)
             
             #much faster in saving saliency maps for all attributes
             process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)

@@ -36,7 +36,7 @@ import pdb
 
 #from get_shifted_landmarks import get_shifted_landmarks_df
     
-device = torch.device("cuda:6" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:2" if torch.cuda.is_available() else"cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
 print(f"Using device: {device}")  # Optional: To confirm whether GPU is used        
 
 def command_line_options():
@@ -64,7 +64,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75",
+        default="../../../../local/scratch/chuber/result/risePositivNegativ_3000_masks_0_75_unbalanced_new",
         help="Path to folder where the output should be stored")
     
     parser.add_argument('-i',
@@ -73,7 +73,7 @@ def command_line_options():
                         help="if given, limit the number of images")
     parser.add_argument('-m',
                         '--model-type',
-                        default='balanced',
+                        default='unbalanced',
                         choices=['balanced', 'unbalanced'],
                         help="Can be balanced or unbalanced")
     parser.add_argument(
@@ -192,13 +192,14 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
         
        
             
-def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,original_score, path):    
+def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,original_score, path): 
+       
     
     filtered_scores = scores_of_images[:, attribute_idx].to(device)  # (500,)
-    
+
     # weighted masks
-    sign = torch.where(original_score[:, attribute_idx] > 0, -1.0, 1.0).to(device)
-    score = (sign*(filtered_scores - original_score[:, attribute_idx].to(device))).to(device)
+    sign = torch.where(original_score[:, attribute_idx] > 0, 1.0, -1.0).to(device)
+    score = (sign*(original_score[:, attribute_idx].to(device) - filtered_scores))
     shaped_score = score.view(-1, 1, 1, 1).to(device)
     weighted_masks = masks * shaped_score  # (500, 1, 224, 224)
     
@@ -207,11 +208,30 @@ def generate_saliency_map(masks, img_name,p, attribute_idx, scores_of_images,ori
     filtered_masks = weighted_masks[positive_indices]
     
     # only take those masks when the direction of change is correct, positiv change goes down, negativ change goes up
-    saliency_map = -torch.sum(filtered_masks, dim=0)  # (1, 224, 224)
+    saliency_map = torch.sum(filtered_masks, dim=0)  # (1, 224, 224)
 
     # optionally normalize
     saliency_map /= (masks.shape[0] * p) + 1e-8
     return saliency_map
+
+
+    
+    # # weighted masks
+    # sign = torch.where(original_score[:, attribute_idx] > 0, -1.0, 1.0).to(device)
+    # score = (sign*(filtered_scores - original_score[:, attribute_idx].to(device)))
+    # shaped_score = score.view(-1, 1, 1, 1).to(device)
+    # weighted_masks = masks * shaped_score  # (500, 1, 224, 224)
+    
+    # #anpassung wegen sign
+    # positive_indices = score > 0  # Shape: (500,)
+    # filtered_masks = weighted_masks[positive_indices]
+    
+    # # only take those masks when the direction of change is correct, positiv change goes down, negativ change goes up
+    # saliency_map = -torch.sum(filtered_masks, dim=0)  # (1, 224, 224)
+
+    # # optionally normalize
+    # saliency_map /= (masks.shape[0] * p) + 1e-8
+    # return saliency_map
 
 
 
