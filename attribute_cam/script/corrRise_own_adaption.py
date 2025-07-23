@@ -24,13 +24,7 @@ import cProfile
 import pstats
 
 import pandas as pd
-from tqdm import tqdm
-import os
-import numpy as np
-import torchvision
 import cv2
-import torch
-from PIL import Image
 import gc
 
 #from get_shifted_landmarks import get_shifted_landmarks_df

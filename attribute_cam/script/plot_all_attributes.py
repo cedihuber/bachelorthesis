@@ -94,26 +94,7 @@ def plot(filter_key, args):
         plt.subplots_adjust(wspace=0.3, hspace=0.5)
         pdf.savefig(fig)
         plt.close(fig)
-        
 
-# def plot_as_png(filter_key):
-#     attrs = Attrs
-#     images = [mpimg.imread(f"../../../../local/scratch/chuber/corrRiseResultAdapted/balanced/corrRise_masks_black_2000_masks/{filter_key}/" + attr + ".png") for attr in attrs]
-
-#     fig, axes = plt.subplots(5, 8, figsize=(24, 15))  
-#     for i, ax in enumerate(axes.flat):
-#         if i < len(images):
-#             ax.imshow(images[i])
-#             ax.axis('off')
-#             ax.set_title(f"{attrs[i]}", fontsize=14)
-#         else:
-#             ax.axis('off')
-
-#     plt.subplots_adjust(wspace=0.3, hspace=0.5)
-#     output_path = f'../../../../local/scratch/chuber/result/corrRise_masks_blurry_10batchs_30size_500masks_1000images/a_{filter_key}.png'
-#     plt.savefig(output_path, dpi=300, bbox_inches='tight')
-#     plt.close(fig)
-#     print(f"Saved PNG for {filter_key} at {output_path}")
  
  
 def main():
