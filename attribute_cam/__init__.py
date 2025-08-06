@@ -5,4 +5,3 @@ from .filter import Filter, read_list, prediction_file, FILTERS
 from .evaluation import statisics, error_rate, class_counts
 from .mask import get_masks, write_masks
 from .dataset_perturb import CelebA_perturb
-from .filter_majority import Filter1
