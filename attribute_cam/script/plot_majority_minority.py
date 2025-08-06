@@ -69,7 +69,7 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_30_patch",
+        default="./result/unbalanced/hirescam",
         help="Path to folder where the output should be stored")
     parser.add_argument(
       '-f',

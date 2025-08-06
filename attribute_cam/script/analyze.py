@@ -74,7 +74,7 @@ def command_line_options():
   )
   parser.add_argument(
       "-l", "--latex-file",
-      default="a_result_table.tex",
+      default="proportional_energy_hirescam_result_table.tex",
       help="Select the file where to write errors into"
   )
   parser.add_argument(
@@ -116,7 +116,7 @@ def main():
     # read predictions
     prediction_file = attribute_cam.prediction_file(args.output_directory, args.which_set, model_type)
     prediction = attribute_cam.read_list(prediction_file, ",", 0)
-    cam_directory = "../../../../local/scratch/chuber/corrRiseStyles/balanced/corrRise_masks_black_white_3000_masks_30_patch" #os.path.join(args.output_directory, model_type, args.cam_type)
+    cam_directory = os.path.join(args.output_directory, model_type, args.cam_type)
 
     # create dataset
     dataset = attribute_cam.CelebA(
@@ -137,7 +137,7 @@ def main():
       print(f"Analyzing CAMS of type {args.cam_type} for {filter_type} filter, model {model_type} and {len(dataset.attributes)} attributes")
 
       # compute acceptable mask ratios
-      stats = attribute_cam.statisics(dataset, filter, masks, mask_sizes, prop_energy=args.prop_energy)
+      stats = attribute_cam.statisics(dataset, filter, masks, mask_sizes, prop_energy=True)
 
       means[(model_type,filter_type)] = stats[0]
       stds[(model_type,filter_type)] = stats[1]
@@ -182,7 +182,7 @@ def main():
 
   print(tabulate.tabulate(table, headers = ["Attribute","Positives"] + ["FNR", "FPR"] * len(args.model_types) + args.filters * len(args.model_types), floatfmt="#.3f"))
 
-  with open(f"{cam_directory}/{args.latex_file}", "w") as w:
+  with open(args.latex_file, "w") as w:
     w.write(tabulate.tabulate(table,tablefmt="latex_raw", floatfmt="#.3f"))
 
 if(__name__ == "__main__"):

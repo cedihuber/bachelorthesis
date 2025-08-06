@@ -31,7 +31,7 @@ import torchvision.transforms.functional as TF
 import torchvision.transforms as T
 import json
     
-device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
+device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu") # mit : cuda: 0 kann ich angeben auf welcher gpu nummer, gpustat um gpu usage zu schauen
       
 
 def command_line_options():
@@ -68,7 +68,7 @@ def command_line_options():
                         help="if given, limit the number of images")
     parser.add_argument('-m',
                         '--model-type',
-                        default='unbalanced',
+                        default='balanced',
                         choices=['balanced', 'unbalanced'],
                         help="Can be balanced or unbalanced")
     parser.add_argument(
@@ -115,6 +115,7 @@ def generate_masks(N,num_patches, patch_size, image_size=(224, 224)):
             y = random.randint(0, image_size[1] - patch_size)
 
             patch = torch.zeros((patch_size, patch_size), dtype=torch.float32, device=device)
+           
             # Add the patch into the mask
             masks[i, 0, y:y+patch_size, x:x+patch_size] = patch
             
@@ -130,7 +131,7 @@ def generate_masks_from_loaded_coords(patch_size, image_size=(224, 224), load_pa
 
     for i, image_coords in enumerate(coords):
         for x, y in image_coords:
-            masks[i, 0, y:y+patch_size, x:x+patch_size] = 0.0  # insert 0-patch
+            masks[i, 0, y:y+patch_size, x:x+patch_size] = 0.0 
 
     return masks
 
@@ -145,7 +146,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     # Save as PNG
     torchvision.io.image.write_png((original.cpu() * 255).byte(), f'{output_dir}/original_image_{img_name}.png')
     perturbed_images = []
-    # image = image.to(device)
+    
     image_expanded = image.unsqueeze(0).expand(masks.shape[0], -1, -1, -1)  # Shape: (N, 3, H, W)
 
    
@@ -165,7 +166,7 @@ def apply_and_save_masks(image, masks, output_dir, img_name, N=20):
     # Generate filenames
     perturbed_filenames = [f'perturbed_image_{img_name}_{i}' for i in range(masks.shape[0])]
 
-    return perturbed, perturbed_filenames #list(zip(perturbed_images, perturbed_filenames))
+    return perturbed, perturbed_filenames 
     
 
 
@@ -199,14 +200,11 @@ def main():
         image_paths = [line.strip() for line in f.readlines()]
         image_paths = image_paths[::-1]
 
-    N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = args.patchsize #original paper 30
-    num_attributes = args.attributes
     first = True
 
-    #masks = generate_masks(N,num_patches,patch_size)
-    masks = generate_masks_from_loaded_coords(patch_size, image_size=(224, 224), load_path=os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_50.txt"))
+    #masks = generate_masks(args.masks,num_patches,args.patchsize)
+    masks = generate_masks_from_loaded_coords(args.patchsize, image_size=(224, 224), load_path=os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_30.txt"))
     masks = masks.cpu()
     save_masks_as_images(masks,f'{args.output_directory}/masken')
     
@@ -220,29 +218,31 @@ def main():
             f.write(f"{img_name}\n")
 
     
-    for attribute_idx in range(0,num_attributes):        
+    for attribute_idx in range(0,args.attributes):        
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
     # perturb images with masks and save them
     with torch.no_grad():
         for img_name in tqdm(image_paths):#[:number_of_images]
             img_path = f"{args.source_directory}/{img_name}"
-    #         print(f"Processing image: {img_path}")
+    
             image, orig_image = load_img(img_path)
             img_name_no_ext, _ = os.path.splitext(img_name)
 
-            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, N)
-            if(first):
+            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, args.masks)
+            print(img_name)
+            if(img_name == "202459.png"):
                 save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
                 first = False
             original_score = affact.predict_corrrise((image,f"original_{img_name_no_ext}")).to(device)
             scores_of_images = affact.predict_corrrise(perturbed_images) # 500,40        
-    #         # Generate saliency map
+      
+            # Generate saliency map
             saliency_maps = generate_all_saliency_maps(masks, scores_of_images, original_score, device) #shape (40,1,224,224)
-            #print(saliency_maps.shape)
+            
             
             #much faster in saving saliency maps for all attributes
-            process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)
+            process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, args.attributes, celebA_dataset, args)
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
 

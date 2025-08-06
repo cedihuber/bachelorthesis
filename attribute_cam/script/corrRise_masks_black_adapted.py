@@ -28,7 +28,7 @@ import json
 import pandas as pd
 import cv2
     
-device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")    
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")    
 
 def command_line_options():
     parser = argparse.ArgumentParser(
@@ -193,15 +193,12 @@ def main():
         image_paths = [line.strip() for line in f.readlines()]
         image_paths = image_paths[::-1]
 
-    N = args.masks
     num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
-    patch_size = args.patchsize #original paper 30
-    num_attributes = args.attributes
     first = True
 
-    #masks = generate_masks(N,num_patches,patch_size,save_path = os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_30_not_used.txt"))
+    #masks = generate_masks(args.masks,num_patches,args.patchsize,save_path = os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_30_not_used.txt"))
     
-    masks = generate_masks_from_coords(patch_size, image_size=(224, 224), load_path = os.path.join(args.protocol_directory,"mask_coordinates_1000masks_patch_30.txt"))
+    masks = generate_masks_from_coords(args.patchsize, image_size=(224, 224), load_path = os.path.join(args.protocol_directory,"mask_coordinates_1000masks_patch_30.txt"))
     masks = masks.to(device)
     save_masks_as_images(masks,f'{args.output_directory}/masken')
     
@@ -213,7 +210,7 @@ def main():
             f.write(f"{img_name}\n")
 
     
-    for attribute_idx in range(0,num_attributes):        
+    for attribute_idx in range(0,args.attributes):        
            os.makedirs(f'{args.output_directory}/{attribute_cam.dataset.ATTRIBUTES[attribute_idx]}', exist_ok=True)
 
     with torch.no_grad():
@@ -223,7 +220,7 @@ def main():
             image, orig_image = load_img(img_path)
             img_name_no_ext, _ = os.path.splitext(img_name)
 
-            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, N)
+            perturbed_images = apply_and_save_masks(image, masks, args.output_directory, img_name_no_ext, args.masks)
             if(first):
                 save_masks_as_images(perturbed_images[0],f'{args.output_directory}/masks_images')
                 first = False
@@ -232,7 +229,7 @@ def main():
             scores_of_images = affact.predict_corrrise(perturbed_images) # shape (batchsize,A)        
             saliency_maps = generate_all_saliency_maps(masks, scores_of_images, original_score, device) #shape (A,1,H,W)
             
-            process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_attributes, celebA_dataset, args)
+            process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, args.attributes, celebA_dataset, args)
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
 

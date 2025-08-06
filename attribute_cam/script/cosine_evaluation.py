@@ -22,13 +22,13 @@ def command_line_options():
   )
   parser.add_argument(
       '-s1', '--source-directory-reference',
-      default='../../../../local/scratch/chuber/result/own_perturbation_4000masks_squared_0_75',
+      default='../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_10_patch',
       help="Select directory containing the input dataset"
   )
   
   parser.add_argument(
       '-s2', '--source-directory-comparison',
-      default='../../../../local/scratch/chuber/result/own_perturbation_4000masks_squared_0_85',
+      default='../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_70_patch',
       help="Select directory containing the input dataset"
   )
   parser.add_argument(
@@ -38,7 +38,7 @@ def command_line_options():
   )
   parser.add_argument(
       '-o', '--output-directory',
-      default="../../../../local/scratch/chuber/result/rise_testing_new",
+      default="../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_10_patch",
       help="Path to folder where the output should be stored"
   )
   parser.add_argument(
@@ -74,7 +74,7 @@ def command_line_options():
   )
   parser.add_argument(
       "-l", "--latex-file",
-      default="../../../../local/scratch/chuber/result/own_perturbation_4000masks_squared_0_75/cosine_similarity_balanced_unbalanced.tex",
+      default="../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_10_patch/cosine_similarity_10_70.tex",
       help="Select the file where to write errors into"
   )
   args = parser.parse_args()
@@ -83,7 +83,6 @@ def command_line_options():
 
 
 def load_average(name):
-    # overlay = torchvision.io.image.read_image(name).numpy().transpose(1,2,0)
     activation = np.load(name + ".npy")
     return torch.tensor(activation, dtype=torch.float32).flatten()
 
@@ -98,11 +97,12 @@ def main():
     for attribute in attribute_cam.ATTRIBUTES:
       reference = load_average(os.path.join(args.source_directory_reference, args.which_set+"-"+filter_type, attribute+".png"))
       comparison = load_average(os.path.join(args.source_directory_comparison, args.which_set+"-"+filter_type, attribute+".png"))
+      
       if is_invalid_vector(reference) or is_invalid_vector(comparison):
         print(f"Warning: Invalid (NaN, inf, or zero) vector for {attribute} with filter {filter_type}")
       cosine_similarity = torch.nn.functional.cosine_similarity(reference.unsqueeze(0), comparison.unsqueeze(0))
       
-      #print("Cosine similarity:", cosine_similarity.item())
+
       results[attribute][filter_type] = cosine_similarity.item()
       
   headers = ["Attribute"] + args.filters
@@ -113,6 +113,7 @@ def main():
 
   print(tabulate.tabulate(table, headers=headers, floatfmt=".3f")) 
   os.makedirs(os.path.dirname(args.latex_file), exist_ok=True)
+  
   # Write to LaTeX
   with open(args.latex_file, "w") as f:
       f.write(tabulate.tabulate(table, headers=headers, tablefmt="latex_raw", floatfmt=".3f"))

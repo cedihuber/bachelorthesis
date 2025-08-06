@@ -63,13 +63,13 @@ def command_line_options():
     parser.add_argument(
         '-o',
         '--output-directory',
-        default="../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_30_patch",
+        default="../result/unbalanced/hirescam",#../../../../local/scratch/chuber/Finalresults/balanced/corrRise_masks_black_3000_masks_30_patch
         help="Path to folder where the output should be stored")
     parser.add_argument(
       '-f',
       '--filters',
       nargs="+",
-      default = ["majority_n", "minority_n","majority_p", "minority_p"],
+      default = ["pr=1", "pr=-1"],
       choices = list(attribute_cam.FILTERS.keys()),
       help="Average cams images with the given filters")
     args = parser.parse_args()

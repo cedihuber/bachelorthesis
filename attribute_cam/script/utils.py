@@ -23,7 +23,6 @@ def pearson_correlation_multi(x, y, original_score): # x shape (500,40) y shape 
     x = x - original_score # (N, A) hier wird im gegensatz zu original pearson correlation der original score abgezogen um zu sehen ob durch das abdecken score höher oder tiefer wird
     y = y - y.mean(dim=0, keepdim=True)  # (N, M)
     nominater = torch.matmul(x.T, y)
-    #print(f'x = {x.shape}, y = {y.shape}')
     x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, A)
     y_norm = torch.norm(y, dim=0, keepdim=True)  # (1, H*W)
     
@@ -42,7 +41,7 @@ def process_saliency(attribute_idx, saliency_maps, orig_image, img_name_no_ext, 
     positive_saliency = torch.clamp(saliency.squeeze(0), min=0).cpu()
     # Normalize to [0, 1]
     positive_saliency = (positive_saliency - positive_saliency.min()) / (positive_saliency.max() - positive_saliency.min() + 1e-8)
-    
+
     # Generate overlay
     overlay = pytorch_grad_cam.utils.image.show_cam_on_image(orig_image, positive_saliency.numpy(), use_rgb=True)
     celebA_dataset.save_cam(positive_saliency, overlay, attribute_name, img_name_no_ext)
@@ -85,7 +84,7 @@ def save_masks_as_images(masks, output_dir):
 
 def generate_all_saliency_maps(masks, attribute_scores, original_score, device):
     
-    #Generate saliency maps for all attributes. Returns tensor of shape (A, 1, H, W)
+    
 
     N, _, H, W = masks.shape
     M = H * W
