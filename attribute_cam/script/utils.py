@@ -9,8 +9,9 @@ from PIL import Image
 
 def load_img(path, input_size=(224, 224)):
     image = torchvision.io.image.read_image(path)
-    # convert to the required data type
+    
     image = image / 255.0
+    
     # add the required batch dimension
     image = image.unsqueeze(0)
     
@@ -18,9 +19,9 @@ def load_img(path, input_size=(224, 224)):
 
 
 def pearson_correlation_multi(x, y, original_score): # x shape (500,40) y shape (500,H*W)
-    # pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
+    # original pearson correlation = sum ( (x - x.mean) * (y-y. mean) ) / sq_root( sum( (x-x.mean)^2 ) * sum( (y-y.mean)^2 ) )
 
-    x = x - original_score # (N, A) hier wird im gegensatz zu original pearson correlation der original score abgezogen um zu sehen ob durch das abdecken score höher oder tiefer wird
+    x = x - original_score # (N, A) subtract original score different from original pearson correlation
     y = y - y.mean(dim=0, keepdim=True)  # (N, M)
     nominater = torch.matmul(x.T, y)
     x_norm = torch.norm(x, dim=0, keepdim=True)  # (1, A)
@@ -62,7 +63,6 @@ def process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, num_
 def save_masks_as_images(masks, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
-    # Iterate over all masks
     for i, mask in enumerate(masks):
         # If the mask has one channel, squeeze it to remove the channel dimension
         if mask.shape[0] == 1:
@@ -70,10 +70,10 @@ def save_masks_as_images(masks, output_dir):
         else:
             mask_np = mask.cpu().numpy()  # Shape: (C, H, W)
 
-        # Normalize to 0-255 for saving as an image (works for both 1-channel and 3-channel masks)
+        
         mask_np = (mask_np * 255).astype(np.uint8)
 
-        # If mask is 3-channel (RGB), you need to reorder the dimensions for saving as an image
+        # If mask is 3-channel (RGB), reorder the dimensions for saving as an image
         if mask_np.shape[0] == 3:
             # Convert from (C, H, W) to (H, W, C)
             mask_np = np.transpose(mask_np, (1, 2, 0))

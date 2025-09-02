@@ -98,12 +98,12 @@ def main():
     # create filter based on the ground truth and predictions
     filter = attribute_cam.Filter(ground_truth, prediction, filter_type)
 
-    print(f"Averaging RISE of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
+    print(f"Averaging CorrRISE of type {args.cam_type} for {filter_type} filter and {len(dataset.attributes)} attributes")
 
     # compute average images
     attribute_cam.average_cam(dataset, filter)
     
-  print(f'The averaging of CAMs finished within: {datetime.now() - startTime}')
+  print(f'The averaging of perturbation finished within: {datetime.now() - startTime}')
 
 if __name__ == "__main__":
     main()

@@ -172,12 +172,8 @@ def main():
       [counts[attribute][0] / sum(counts[attribute])] +
       # error rates on unbalanced model, including highlights
       [f"\\bf {e:#.3f}" if i == 0 and counts[attribute][0] < counts[attribute][1] or i == 1 and counts[attribute][0] > counts[attribute][1] else f"{e:#.3f}" for i,e in enumerate(errors["unbalanced"][attribute][:2]) if "unbalanced" in args.model_types] +
-      # error rates on balanced model
-      #[e for e in errors["balanced"][attribute][:2] if "balanced" in args.model_types] +
       # proportional energy on unbalanced model, including highlights
       [f"\\bf {means[('unbalanced',filter_type)][attribute][index]:#.3f}" if filter_type == "pr=-1" and counts[attribute][0] < counts[attribute][1] or filter_type == "pr=1" and counts[attribute][0] > counts[attribute][1] else f"{means[('unbalanced',filter_type)][attribute][index]:#.3f}" for filter_type in args.filters if "unbalanced" in args.model_types]
-      # proportional energy on balanced model
-      #[means[("balanced",filter_type)][attribute][index] for filter_type in args.filters if "balanced" in args.model_types]
       # for all attributes
       for attribute in sorted_attributes
   ]

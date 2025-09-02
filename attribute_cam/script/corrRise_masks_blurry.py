@@ -88,7 +88,7 @@ def command_line_options():
         '--attributes',
         default=40,
         type=int,
-        help='Number of masks per image'
+        help='Number of attributes'
     )
     parser.add_argument(
         '-patchsize',
@@ -98,6 +98,13 @@ def command_line_options():
         help='Size of one patch'
     )
     
+    parser.add_argument(
+        '-patchnum',
+        '--patchnum',
+        default=1,
+        type=int,
+        help='Number of patches'
+    )
     args = parser.parse_args()
 
     return args
@@ -200,11 +207,13 @@ def main():
         image_paths = [line.strip() for line in f.readlines()]
         image_paths = image_paths[::-1]
 
-    num_patches = 1 # original paper 10, bilder sind dort aber nur 112x112
+    num_patches = args.patchnum # original paper 10, bilder sind dort aber nur 112x112
     first = True
 
+    #use generate masks if you want to generate new masks at new locations and use generate_masks_from_loaded_coords if you want to have masks at locations saved before
     #masks = generate_masks(args.masks,num_patches,args.patchsize)
     masks = generate_masks_from_loaded_coords(args.patchsize, image_size=(224, 224), load_path=os.path.join(args.protocol_directory,"mask_coordinates_3000masks_patch_30.txt"))
+
     masks = masks.cpu()
     save_masks_as_images(masks,f'{args.output_directory}/masken')
     
@@ -212,9 +221,8 @@ def main():
     
     affact = attribute_cam.AFFACT(args.model_type, device)
     
-    number_of_images = 1000
     with open(f'{args.output_directory}/img_names.txt', "w") as f:
-        for img_name in tqdm(image_paths):#[:number_of_images]
+        for img_name in tqdm(image_paths):
             f.write(f"{img_name}\n")
 
     
@@ -223,7 +231,7 @@ def main():
 
     # perturb images with masks and save them
     with torch.no_grad():
-        for img_name in tqdm(image_paths):#[:number_of_images]
+        for img_name in tqdm(image_paths):
             img_path = f"{args.source_directory}/{img_name}"
     
             image, orig_image = load_img(img_path)
@@ -240,8 +248,6 @@ def main():
             # Generate saliency map
             saliency_maps = generate_all_saliency_maps(masks, scores_of_images, original_score, device) #shape (40,1,224,224)
             
-            
-            #much faster in saving saliency maps for all attributes
             process_attributes_parallel(saliency_maps, orig_image, img_name_no_ext, args.attributes, celebA_dataset, args)
 
     print(f'The perturbation finished within: {datetime.now() - startTime}')
